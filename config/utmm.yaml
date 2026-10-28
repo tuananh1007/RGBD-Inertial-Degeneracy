@@ -1,0 +1,147 @@
+# ============================================================
+#  UT-MM (Sun et al., IROS 2024) — Clearpath Jackal, RealSense D455
+#  depth (848x480, mm, not aligned to colour) + colour (1280x720),
+#  Microstrain 3DM-GX5-25 IMU @ 100 Hz, Vicon ground truth.
+#  Bags converted with scripts/convert_utmm.py.
+#
+#  Extrinsics are the nominal URDF chain from the bags' /tf_static
+#  (base_link -> gx5_link -> microstrain_link, base_link -> realsense_*);
+#  VIGS-SLAM's config/utmm.yaml uses the same transform (within 0.006 deg).
+# ============================================================
+
+common:
+  depth_topic:      "/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/depth/camera_info"
+  imu_topic:        "/camera/imu"
+  img_topic:        "/camera/color/image_raw"
+  img_en:  1
+  depth_en: true
+  lio_en: true
+
+extrin_calib:
+  # depth optical frame -> IMU (microstrain_link): p_imu = R p_depth + T
+  extrinsic_T: [0.1762, 0.0475, 0.2245]
+  extrinsic_R: [ 0,  0,  1,
+                -1,  0,  0,
+                 0, -1,  0]
+  # depth optical frame -> colour optical frame: p_col = Rcl p_depth + Pcl
+  Rcl: [ 1.0000,  0.0032,  0.0008,
+        -0.0032,  1.0000, -0.0004,
+        -0.0008,  0.0004,  1.0000]
+  Pcl: [-0.0591, 0.0001, 0.0003]
+
+time_offset:
+  imu_time_offset:   0.0
+  img_time_offset:   0.0
+  depth_time_offset: 0.0
+  exposure_time_init: 0.0
+
+depth:
+  min_depth:        0.40     # D455 minimum range
+  max_depth:        8.00     # large hall: median depth ~7.2 m
+  depth_scale:      0.001    # RealSense z16 in millimetres
+  point_filter_num: 4
+  noise_frac:       0.02     # D455 stereo error grows with range
+  lateral_noise:    0.005
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.10
+  depth_bins_en:    true
+  num_depth_bins:   10
+  max_pts_per_bin:  2500
+  info_select_en:   true
+  target_points:    20000
+  rebalance_alpha:  0.5
+
+preprocess:
+  filter_size_surf: 0.10
+
+lio:
+  max_iterations:  5
+  dept_err:        0.03
+  beam_err:        0.01
+  min_eigen_value: 0.005
+  voxel_size:      0.3
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+  deg_threshold:         0.07
+  oc_ekf_en:          true
+  oc_lambda_thresh:   0.05
+  oc_adaptive_thresh_en: true
+  oc_lambda_lo:       0.01
+  oc_lambda_hi:       0.10
+  oc_adapt_kappa_knee: 20.0
+  oc_cov_inflate:     10.0
+  deg_isotropy_thresh:   0.10
+  skip_vio_sigma_thresh: 0.30
+
+local_map:
+  map_sliding_en: true
+  half_map_size:  30
+  sliding_thresh: 5
+  lv_max_pts:        50000
+  lv_voxel_size:     2.0
+  lv_update_interval: 30
+
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  normal_en:              true
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false
+  inv_expo_cov:           0.1
+
+imu:
+  imu_en:       true        # Microstrain 3DM-GX5-25 @ 100 Hz
+  imu_int_frame: 30
+  acc_cov:       0.1        # legacy FAST-LIVO2-style values (see noise overrides)
+  gyr_cov:       0.1
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: Microstrain 3DM-GX5-25 datasheet x6
+  gyr_noise_density: 0.001
+  acc_noise_density: 0.02
+  gyr_random_walk:   0.000022
+  acc_random_walk:   0.00086
+
+uav:
+  imu_rate_odom:   false
+  gravity_align_en: true
+
+publish:
+  dense_map_en:       false
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+evo:
+  seq_name:      "utmm"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+# Colour camera (from /realsense/color/camera_info)
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [-0.0581, 0.0708, -0.0003, 0.0014]
+  intrinsics: [642.651, 641.807, 654.476, 359.594]
+  resolution: [1280, 720]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  linearity_window: 20

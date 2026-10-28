@@ -1,0 +1,144 @@
+# ============================================================
+#  ROVER (Schmidt et al., T-RO 2025), RealSense D435i RGB-D + IMU, outdoors (gardens, park)
+#  convert_rover.py: colour 640x480, depth (mm) registered to colour, IMU ~300 Hz
+#  Reference: Leica total station, prism position only (evaluate_runs.py --lever)
+#  Everything except the sensor description is openloris_tf.yaml (same camera model)
+# ============================================================
+
+common:
+  depth_topic:      "/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/depth/camera_info"
+  imu_topic:        "/camera/imu"
+  img_topic:        "/camera/color/image_raw"
+  img_en:  1
+  depth_en: true
+  lio_en: true
+
+extrin_calib:
+  # depth registered to the colour image (as the dataset's RGB-D baselines use it); p_imu = R p_color + T
+  # = inverse of IMU-To-Cam (T_cam_imu) of calibration/calib_d435i.yaml (Kalibr)
+  extrinsic_T: [-0.022869, 0.010252, 0.032022]
+  extrinsic_R: [ 0.999771, -0.021281,  0.002398,
+                 0.021284,  0.999773, -0.001221,
+                -0.002372,  0.001271,  0.999996]
+  # the image is the colour image, the frame of the registered depth
+  Rcl: [1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0]
+  Pcl: [0.0, 0.0, 0.0]
+
+time_offset:
+  imu_time_offset:   0.0
+  img_time_offset:   0.0
+  depth_time_offset: 0.0
+  exposure_time_init: 0.0
+
+depth:
+  min_depth:        0.30     # D435i min range ~0.3 m
+  max_depth:        8.00     # outdoors (set a priori, as UT-MM's large hall; OpenLORIS indoor uses 5 m)
+  depth_scale:      0.001    # *_raw.png in millimetres
+  point_filter_num: 4
+  noise_frac:       0.01     # D435i structured-light noise ~1% of range
+  lateral_noise:    0.005
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.10
+  depth_bins_en:    true
+  num_depth_bins:   10
+  max_pts_per_bin:  2500
+  info_select_en:   true
+  target_points:    20000
+  rebalance_alpha:  0.5
+
+preprocess:
+  filter_size_surf: 0.10
+
+lio:
+  max_iterations:  5
+  dept_err:        0.03
+  beam_err:        0.01
+  min_eigen_value: 0.005
+  voxel_size:      0.3
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+  deg_threshold:         0.07
+  oc_ekf_en:          true
+  oc_lambda_thresh:   0.05
+  oc_adaptive_thresh_en: true
+  oc_lambda_lo:       0.01
+  oc_lambda_hi:       0.10
+  oc_adapt_kappa_knee: 20.0
+  oc_cov_inflate:     10.0
+  deg_isotropy_thresh:   0.10
+  skip_vio_sigma_thresh: 0.30
+
+local_map:
+  map_sliding_en: true
+  half_map_size:  30
+  sliding_thresh: 5
+  lv_max_pts:        50000
+  lv_voxel_size:     2.0
+  lv_update_interval: 30
+
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  normal_en:              true
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false
+  inv_expo_cov:           0.1
+
+imu:
+  imu_en:       true        # D435i BMI055, ~300 Hz rows of imu/imu.txt
+  imu_int_frame: 30
+  acc_cov:       0.1        # real IMU is much better than synthesized
+  gyr_cov:       0.1        # lower covariance → trust IMU more
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: the dataset's Kalibr values (calib_d435i.yaml)
+  gyr_noise_density: 0.0010662953
+  acc_noise_density: 0.0122042887
+  gyr_random_walk:   0.0000577628
+  acc_random_walk:   0.0005354903
+
+uav:
+  imu_rate_odom:   false
+  gravity_align_en: true
+
+publish:
+  dense_map_en:       false
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+evo:
+  seq_name:      "rover"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+# Kalibr colour intrinsics of calib_d435i.yaml
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [0.0756160766, -0.2088729975, -0.0023347441, 0.0040103560]
+  intrinsics: [596.1950425915, 593.1411835433, 327.0463454538, 245.1614213326]
+  resolution: [640, 480]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  linearity_window: 20

@@ -1,0 +1,11 @@
+# Baseline (our earlier system): legacy FAST-LIVO2
+# IMU handling, OC-EKF post-processing, per-dataset sampler, no VIO update.
+imu:
+  init_mode: legacy
+lio:
+  dtf_mode: upstream
+  oc_ekf_en: true
+common:
+  img_en: 0
+evo:
+  pose_output_en: true

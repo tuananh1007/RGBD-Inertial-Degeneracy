@@ -1,0 +1,13 @@
+# FAST-LIVO2 retail preset camera (Bright_Screen_Wall, Retail_Street, CBD_01)
+cam_model: Pinhole
+cam_width:  640
+cam_height: 512
+cam_fx: 646.78472
+cam_fy: 646.65775
+cam_cx: 313.45680
+cam_cy: 261.39961
+# radtan distortion (calibration.yaml, scale-invariant)
+cam_d0: -0.076160
+cam_d1:  0.123001
+cam_d2: -0.00113
+cam_d3:  0.000251

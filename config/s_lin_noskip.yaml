@@ -1,0 +1,20 @@
+# Strided-fill base (2026-10-16 rerun): lin_noskip.yaml with depth/itps_fill = strided.
+# Ablation of ours_lin.yaml (Ours with the linearity-dependent photometric variance): see ours_noskip.yaml.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  skip_vio_sigma_thresh: 2.0
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

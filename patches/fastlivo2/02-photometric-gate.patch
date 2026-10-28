@@ -1,0 +1,42 @@
+diff -ru a/include/vio.h b/include/vio.h
+--- a/include/vio.h	2026-10-06 13:11:33.329687151 -0700
++++ b/include/vio.h	2026-10-06 13:11:46.929698696 -0700
+@@ -107,6 +107,10 @@
+   int max_iterations, total_points;
+ 
+   double img_point_cov, outlier_threshold, ncc_thre;
++  // Photometric consistency gate: reject an update whose pose correction lies outside the
++  // chi-square region gate_chi2 of the prior (depth-inertial) covariance; 0 disables the gate.
++  double gate_chi2 = 0.0, gate_d2 = 0.0;
++  int gate_rejected = 0;
+   
+   SubSparseMap *visual_submap;
+   std::vector<std::vector<V3D>> rays_with_sample_points;
+diff -ru a/src/vio.cpp b/src/vio.cpp
+--- a/src/vio.cpp	2026-10-06 13:11:33.329687151 -0700
++++ b/src/vio.cpp	2026-10-06 13:12:09.739714691 -0700
+@@ -1807,7 +1807,24 @@
+ 
+   double t2 = omp_get_wtime();
+ 
++  StatesGroup prior = *state;
+   computeJacobianAndUpdateEKF(img);
++  if (total_points > 0)
++  {
++    VD(6) d6 = ((*state) - prior).head<6>();
++    MD(6, 6) P6 = prior.cov.topLeftCorner<6, 6>();
++    gate_d2 = d6.dot(P6.ldlt().solve(d6));
++    bool reject = gate_chi2 > 0.0 && gate_d2 > gate_chi2;
++    printf("[VIOGATE] t %.3f d2 %.3f drot %.5f dpos %.5f srot %.5f spos %.5f npts %d reject %d\n", img_time, gate_d2,
++           d6.head<3>().norm(), d6.tail<3>().norm(), std::sqrt(P6.topLeftCorner<3, 3>().trace()),
++           std::sqrt(P6.bottomRightCorner<3, 3>().trace()), total_points, (int)reject);
++    if (reject)
++    {
++      *state = prior;
++      updateFrameState(*state);
++      gate_rejected++;
++    }
++  }
+ 
+   double t3 = omp_get_wtime();
+ 

@@ -1,0 +1,15 @@
+# ============================================================
+#  vikit camera parameters for OpenLORIS-Scene
+#  D435i native: 848x480, resized to 640x480
+#  Intrinsics will be updated from actual bag camera_info
+#  D435i office1: fx=611.45, fy=611.49, cx=433.20, cy=249.47 at 848x480
+#  After resize (sx=640/848=0.7547, sy=1.0):
+#    fx=461.47, fy=611.49, cx=326.95, cy=249.47
+# ============================================================
+cam_model: Pinhole
+cam_width:  640
+cam_height: 480
+cam_fx: 465.51
+cam_fy: 616.75
+cam_cx: 328.33
+cam_cy: 242.90

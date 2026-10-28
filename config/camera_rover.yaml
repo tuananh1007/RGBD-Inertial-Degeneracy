@@ -1,0 +1,15 @@
+# ============================================================
+#  vikit camera parameters for ROVER, RealSense D435i colour 640x480
+#  Kalibr intrinsics and radtan distortion of calibration/calib_d435i.yaml
+# ============================================================
+cam_model: Pinhole
+cam_width:  640
+cam_height: 480
+cam_fx: 596.1950425915
+cam_fy: 593.1411835433
+cam_cx: 327.0463454538
+cam_cy: 245.1614213326
+cam_d0: 0.0756160766
+cam_d1: -0.2088729975
+cam_d2: -0.0023347441
+cam_d3: 0.0040103560

@@ -1,0 +1,29 @@
+# Uniform-draw base (2026-10-16 rerun): lin_proj10_joseph.yaml with depth/itps_uniform_random = true.
+# Projection comparator (2026-10-12 rerun): as lin_proja_*, but with a fixed trigger: translation directions whose
+# eigenvalue ratio is below 0.10 (the earlier system's degeneracy threshold, deg_isotropy_thresh) are projected out;
+# Joseph-form covariance on both paths.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  oc_after_plain: true
+  oc_ekf_en: true
+  oc_cov_mode: joseph
+  oc_cov_inflate: 1.0
+  oc_sched_from_ratio: true
+  oc_icp_cov_from_config: true   # sparse-depth path applies oc_cov_mode / oc_cov_inflate
+  oc_adaptive_thresh_en: false
+  oc_lambda_thresh: 0.10
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

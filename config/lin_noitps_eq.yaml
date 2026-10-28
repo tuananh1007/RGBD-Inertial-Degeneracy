@@ -1,0 +1,17 @@
+# Matched-budget selection ablation: the depth-stratified sampler capped at ITPS's 20,000 points per frame.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: false
+  fallback_total_cap: 20000
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

@@ -1,0 +1,153 @@
+# ============================================================
+#  OpenLORIS-Scene Benchmark — Real D435i RGB-D + IMU
+#  (office, home, cafe, corridor, market)
+# ============================================================
+#
+#  OpenLORIS provides real D435i data (not synthesized):
+#    Color: 848x480 @ 30 Hz (resized to 640x480 by converter)
+#    Depth: aligned to color, factor=5000 after converter rescaling
+#    IMU: BMI055 at 250 Hz (accel+gyro merged by converter)
+#    GT: OptiTrack (office) or LiDAR SLAM (others)
+#
+#  Download: https://lifelong-robotic-vision.github.io/dataset/scene
+# ============================================================
+
+common:
+  depth_topic:      "/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/depth/camera_info"
+  imu_topic:        "/camera/imu"
+  img_topic:        "/camera/color/image_raw"
+  img_en:  1
+  depth_en: true
+  lio_en: true
+
+extrin_calib:
+  # depth = /d400/aligned_depth_to_color, i.e. in the d400_color optical frame; p_imu = R p_color + T
+  # with T(d400_imu <- d400_color) from the bags' /tf_static
+  extrinsic_T: [-0.020398, 0.005064, 0.011064]
+  extrinsic_R: [ 0.999975, -0.003829, -0.005868,
+                 0.003849,  0.999987,  0.003479,
+                 0.005855, -0.003502,  0.999977]
+  # the image is the colour image, the frame of the aligned depth
+  Rcl: [1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0]
+  Pcl: [0.0, 0.0, 0.0]
+
+time_offset:
+  imu_time_offset:   0.0
+  img_time_offset:   0.0
+  depth_time_offset: 0.0
+  exposure_time_init: 0.0
+
+depth:
+  min_depth:        0.30     # D435i min range ~0.3 m
+  max_depth:        5.00     # indoor scenes ~5 m max
+  depth_scale:      0.0002   # factor=5000 → 1/5000
+  point_filter_num: 4
+  noise_frac:       0.01     # D435i structured-light noise ~1% of range
+  lateral_noise:    0.005
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.10
+  depth_bins_en:    true
+  num_depth_bins:   10
+  max_pts_per_bin:  2500
+  info_select_en:   true
+  target_points:    20000
+  rebalance_alpha:  0.5
+
+preprocess:
+  filter_size_surf: 0.10
+
+lio:
+  max_iterations:  5
+  dept_err:        0.03
+  beam_err:        0.01
+  min_eigen_value: 0.005
+  voxel_size:      0.3
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+  deg_threshold:         0.07
+  oc_ekf_en:          true
+  oc_lambda_thresh:   0.05
+  oc_adaptive_thresh_en: true
+  oc_lambda_lo:       0.01
+  oc_lambda_hi:       0.10
+  oc_adapt_kappa_knee: 20.0
+  oc_cov_inflate:     10.0
+  deg_isotropy_thresh:   0.10
+  skip_vio_sigma_thresh: 0.30
+
+local_map:
+  map_sliding_en: true
+  half_map_size:  30
+  sliding_thresh: 5
+  lv_max_pts:        50000
+  lv_voxel_size:     2.0
+  lv_update_interval: 30
+
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  normal_en:              true
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false
+  inv_expo_cov:           0.1
+
+imu:
+  imu_en:       true        # REAL D435i BMI055 IMU — not synthesized!
+  imu_int_frame: 30
+  acc_cov:       0.1        # real IMU is much better than synthesized
+  gyr_cov:       0.1        # lower covariance → trust IMU more
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: D435i BMI055 datasheet x6
+  gyr_noise_density: 0.0015
+  acc_noise_density: 0.009
+  gyr_random_walk:   0.000011
+  acc_random_walk:   0.00041
+
+uav:
+  imu_rate_odom:   false
+  gravity_align_en: true
+
+publish:
+  dense_map_en:       false
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+evo:
+  seq_name:      "openloris_office1"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+# Camera intrinsics — will be updated with actual values from bag
+# D435i typical: fx~616, fy~616, cx~424, cy~240 at 848x480
+# After resize to 640x480: fx~464, fy~616, cx~320, cy~240
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  intrinsics: [461.47, 611.49, 326.95, 249.47]
+  resolution: [640, 480]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  linearity_window: 20

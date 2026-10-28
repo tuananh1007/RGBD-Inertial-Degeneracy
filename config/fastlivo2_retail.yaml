@@ -1,0 +1,228 @@
+# ============================================================
+#  RGB-D VIO  —  FAST-LIVO2 projected LiDAR depth, retail preset (Retail_Street,
+#  CBD_Building_01, Bright_Screen_Wall), corrected depth→IMU extrinsic
+#  UCLA UAV Pest Control Project
+# ============================================================
+#
+#  D455 default ROS 2 Wrapper topics (realsense2_camera):
+#    /camera/depth/image_rect_raw        (16UC1, mm)
+#    /camera/depth/camera_info
+#    /camera/color/image_raw             (BGR8, 30 Hz)
+#    /camera/imu                         (200 Hz combined)
+#
+#  The depth image replaces the LiDAR; everything else is
+#  the same pipeline as FAST-LIVO2.
+# ============================================================
+
+common:
+  depth_topic:      "/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/depth/camera_info"
+  imu_topic:        "/camera/imu"
+  img_topic:        "/camera/color/image_raw"
+  img_en:  0      # 1 = run VIO with colour image
+  depth_en: true  # true = use depth images
+  # lio_en controls HOW the depth image is used:
+  #   true  → depth-as-LiDAR (full ICP scan-to-map + voxel map + EKF)  [default]
+  #   false → depth-aided VIO (ray normals only; no ICP, no voxel map)
+  #            State update comes from VIO photometric residuals + IMU only.
+  lio_en: true
+
+# ---- Extrinsics ----------------------------------------------------
+# depth-camera body frame → IMU frame
+# For D455 the IMU is essentially co-located with the depth sensor.
+# Refine with FAST-Calib: https://github.com/hku-mars/FAST-Calib
+extrin_calib:
+  # Depth (projected into camera frame) → IMU
+  # The conversion script projects LiDAR→camera, and IMU is approximately
+  # co-located with LiDAR. The camera→LiDAR→IMU chain means we need
+  # Rcl^T as extrinsic_R and adjusted translation.
+  # For simplicity, use identity (errors are small, <3cm offset).
+  extrinsic_T: [0.06737, 0.04124, 0.07642]   # inv(VIGS T_cam_imu), retail preset
+  extrinsic_R: [0.006102, -0.006154, 0.999962,
+               -0.999863, 0.015380, 0.006196,
+               -0.015417, -0.999863, -0.006060]
+
+  # Colour camera → depth camera (identity since both are in camera frame)
+  Rcl: [1, 0, 0,
+        0, 1, 0,
+        0, 0, 1]
+  Pcl: [0.0, 0.0, 0.0]
+
+# ---- Temporal offsets ----------------------------------------------
+time_offset:
+  imu_time_offset:   0.0   # IMU timestamp correction (seconds)
+  img_time_offset:   0.1   # images are stamped at scan start but exposed at scan end (FAST-LIVO2 avia.yaml)
+  depth_time_offset: 0.0   # depth image timestamp correction
+  exposure_time_init: 0.0
+
+# ---- Depth preprocessing -------------------------------------------
+# Converts the 16-bit depth image to a point cloud.
+depth:
+  min_depth:        0.50    # Livox Avia min range
+  max_depth:        40.00   # Livox Avia range up to ~200m, clip at 15m
+  depth_scale:      0.001   # projected depth in mm → 1e-3 converts to metres
+  point_filter_num: 1       # keep 1-in-N pixels (stride) — used when depth_bins_en: false
+
+  # Noise model — used by handleDepthInit() when lio_en: false
+  # D455 spec: axial noise ≈ 2 % of range (2σ); lateral ~half that
+  noise_frac:    0.002  # Livox Avia: σ_z ≈ 0.2% of range (2mm @ 1m)
+  lateral_noise: 0.003  # LiDAR lateral noise (3 mm)
+
+  # Sprint 1 #1: Flying-pixel rejection
+  # Pixels at depth discontinuities (D455 "mixed pixels") produce phantom
+  # floating points that corrupt ICP plane fitting.  Reject any pixel whose
+  # depth differs from a valid 4-connected neighbour by > flying_pixel_thresh
+  # fraction of its own depth (e.g. 0.10 = 10 % jump).
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.10   # relative depth-jump threshold
+
+  # Sprint 1 #4: Depth-stratified sampling
+  # Replaces uniform pixel-stride subsampling with a per-depth-bin quota so
+  # that distant surfaces (sparse pixels) are sampled as densely as near ones.
+  # Iteration uses stride=point_filter_num/2 with bin gating.
+  # Result: ~25 000 points balanced across 10 depth slices of 0–5 m.
+  depth_bins_en:    false
+  num_depth_bins:   10     # number of depth slices (0.47 m each for 0.3–5 m)
+  max_pts_per_bin:  2500   # max points per slice → 25 000 total max
+
+  # ---- Information-Theoretic Point Selection (ITPS) --------------------
+  # When enabled, replaces heuristic depth-bin sampling with E-optimal
+  # point selection that maximises λ_min(FIM) of the translational Fisher
+  # Information Matrix.  Unifies depth sampling, degeneracy detection,
+  # and VIO covariance adaptation into a single objective.
+  info_select_en:   false     # true = ITPS; false = fallback to depth_bins
+  target_points:    20000    # total point budget K
+  rebalance_alpha:  0.5      # degeneracy rebalancing strength α ∈ [0,1]
+
+# ---- LIO voxel parameters ------------------------------------------
+# Tuned for indoor/field depth noise (~±5-15 mm for D455)
+preprocess:
+  filter_size_surf: 0.10    # voxel-grid leaf size before ICP (metres)
+
+lio:
+  max_iterations:  5
+  dept_err:        0.02     # Livox Avia depth error (m)
+  beam_err:        0.005    # Livox lateral noise (m)
+  min_eigen_value: 0.005
+  voxel_size:      0.5      # larger voxels for outdoor scenes (m)
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+
+  # Sprint 2 #3: Degeneracy detection thresholds
+  # σ_min is the smallest normalised singular value of the point-to-plane
+  # Hessian H = Σ(nᵢnᵢᵀ)/N.  Matches the universal threshold from the
+  # resource-constrained FAST-LIVO2 paper (0.07 across AVIA / MID-360).
+  deg_threshold:         0.07   # below this → degenerate (corridor / flat crop row)
+
+  # ---- Observability-Constrained EKF (OC-EKF) -------------------------
+  # Replaces heuristic Tikhonov suppression with principled constrained-EKF.
+  # Projects the ICP state update onto the observable subspace (eigenvectors
+  # of the translational FIM with eigenvalue ratio ≥ oc_lambda_thresh).
+  # Preserves IMU-propagated covariance along unobservable directions.
+  oc_ekf_en:          true    # enable OC-EKF (false → legacy Tikhonov suppression)
+  oc_lambda_thresh:   0.05    # base eigenvalue ratio (used when adaptive disabled)
+  oc_adaptive_thresh_en: true # enable scene-adaptive threshold
+  oc_lambda_lo:       0.01    # adaptive lower bound (well-conditioned → accept more)
+  oc_lambda_hi:       0.10    # adaptive upper bound (ill-conditioned → reject more)
+  oc_adapt_kappa_knee: 20.0   # condition number at sigmoid midpoint
+  oc_cov_inflate:     10.0    # inflate cov along unobservable dirs (signals VIO)
+
+  # ITPS isotropy threshold: when ITPS is active, degeneracy is detected
+  # from the FIM isotropy ratio ι = λ_min/λ_max instead of ICP σ_min.
+  deg_isotropy_thresh:   0.10   # below this → degenerate (ITPS path only)
+  # Sprint 2 #10: Adaptive VIO frame selector
+  # When σ_min > threshold AND linearity < 0.7, every other VIO frame is
+  # skipped (~30 % CPU saving on Jetson Orin NX).
+  skip_vio_sigma_thresh: 0.30   # well-constrained threshold
+
+local_map:
+  # Sprint 3 #11: Enable map sliding + smaller local map for Jetson memory budget.
+  # With lv_update_interval=30 the long-term visual map (LV map) provides
+  # continuity for revisited areas after the local map has slid away.
+  map_sliding_en: true
+  half_map_size:  50         # larger for outdoor FAST-LIVO2 scenes
+  sliding_thresh: 5
+
+  # Sprint 3 #11: Long-term visual map (LV Map) parameters
+  lv_max_pts:        50000  # max LV map entries; evicts when exceeded
+  lv_voxel_size:     2.0    # spatial cell size (m); one representative point per cell
+  lv_update_interval: 30    # update LV map every N LIO frames
+
+# ---- VIO patch tracking --------------------------------------------
+# Same as FAST-LIVO2 VIO; works with any calibrated colour camera.
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  # normal_en controls homography-based (vs affine) patch warping.
+  # lio_en:true  → LIO builds accurate plane normals → normal_en: true  is ideal
+  # lio_en:false → ray-direction normals (approximate) → normal_en: false is safer
+  normal_en:              true   # set false when lio_en: false
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false   # set true if autoexposure causes issues
+  inv_expo_cov:           0.1
+
+# ---- IMU noise model -----------------------------------------------
+# D455 internal BMI055 IMU (moderate quality; use external IMU for UAV)
+imu:
+  imu_en:       true
+  imu_int_frame: 30
+  acc_cov:       0.3
+  gyr_cov:       0.3
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: Livox Avia BMI088 datasheet x6 (reports in g)
+  gyr_noise_density: 0.001
+  acc_noise_density: 0.01
+  gyr_random_walk:   0.00001
+  acc_random_walk:   0.0002
+  acc_scale:         9.81
+
+# ---- UAV flight-controller integration -----------------------------
+uav:
+  imu_rate_odom:   true   # publish high-rate IMU-propagated odometry
+  gravity_align_en: true  # align world frame with gravity on startup
+
+# ---- Publishing ----------------------------------------------------
+publish:
+  dense_map_en:       true
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+# ---- Logging / evaluation ------------------------------------------
+evo:
+  seq_name:      "d455_flight_01"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0      # 0 = world frame
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1     # -1 = save everything in one file at shutdown
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+# ---- Camera model (vikit) ------------------------------------------
+# Used by the VIO pipeline.  Must match the colour camera.
+# Run once: rosrun camera_calibration cameracalibrator.py
+#   or use the factory calibration from realsense2_camera.
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  intrinsics: [646.78, 646.66, 313.46, 261.40]   # FAST-LIVO2 retail preset (0.5x)
+  resolution: [640, 512]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  # Sprint 1 #9: Pose linearity window (number of recent poses used for PCA)
+  linearity_window: 20

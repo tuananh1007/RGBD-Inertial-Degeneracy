@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sampling, Fusion, and Covariance in RGB-D–Inertial Odometry</title>
+<meta name="description" content="Code, configurations, and field recordings for the paper Sampling, Fusion, and Covariance in RGB-D–Inertial Odometry under Depth Degeneracy (Vu, Zhao, Jawed).">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1>Sampling, Fusion, and Covariance in<br>RGB-D–Inertial Odometry under Depth Degeneracy</h1>
+    <p class="authors">Tuan-Anh Vu, Xiaoyang Zhao, and M. Khalid Jawed</p>
+    <p class="affil">Department of Mechanical and Aerospace Engineering, University of California, Los Angeles</p>
+    <nav class="links">
+      <span class="btn btn-off" title="Under review">Paper (under review)</span>
+      <a class="btn" href="https://github.com/tuananh1007/RGBD-Inertial-Degeneracy">Code</a>
+      <a class="btn" href="https://huggingface.co/datasets/tuananh05253/RGBD-Inertial-Degeneracy-Field">Field recordings</a>
+      <a class="btn" href="assets/explainer_notitle.mp4">Video</a>
+    </nav>
+    <figure class="video">
+      <video src="assets/explainer_notitle.mp4" poster="assets/explainer_poster.png" autoplay muted loop playsinline
+             aria-label="The motivation of the paper in three steps, on real data">
+        <img src="assets/explainer.gif" alt="The motivation of the paper in three steps, on real data">
+      </video>
+      <figcaption>The motivation in three steps, on real data: a degenerate depth frame (UT-MM <code>square-1</code>), what each
+      design does with the weakly constrained direction (schematic), and the trajectories both systems produce on
+      <code>square-2</code> and on the 173&nbsp;m <code>CBD_Building_02</code> walk.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+<section id="abstract">
+  <div class="container narrow">
+    <h2>Abstract</h2>
+    <p><strong>Purpose:</strong> Consumer depth cameras often constrain motion weakly in large rooms, corridors, and
+    outdoor scenes. We examine how correction projection, point sampling, inertial weighting, and photometric fusion
+    affect RGB-D–inertial odometry.</p>
+    <p><strong>Methods:</strong> Classical restricted-gain theory separates the effect of projecting a correction from
+    that of its stored covariance. A shared-map iterated Kalman filter, adapted to consumer depth with spatially
+    distributed samples, continuous-time inertial noise parameters, staged initialization, and photometric updates, is
+    the experimental platform. Controlled experiments compare projected updates with Joseph-form or spliced
+    covariances, sampling policies, and noise models.</p>
+    <p><strong>Results:</strong> With matched triggers, storing the splice raises the per-sequence error by
+    geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS and diverges in every run of a long outdoor sequence,
+    whereas the same projection with Joseph-form covariance has errors similar to the unrestricted filter, on two
+    sensing platforms and in two batches. Inertial noise weighting and photometric fusion each lower the error
+    substantially, whereas information-guided quotas show no significant advantage over uniform sampling. On 18
+    primary sequences (15 consumer RGB-D recordings with motion-capture references, three with sparse LiDAR-rendered
+    depth and a correlated reference), the estimator completes all 90 runs, replayed at the recorded rate, with
+    translational absolute trajectory error below 0.5&nbsp;m, which no other online method compared achieves; the
+    measured front-end stages average 12–22&nbsp;ms per frame on four desktop CPU cores.</p>
+    <p><strong>Conclusion:</strong> A restricted correction cannot be judged apart from the covariance stored with it.
+    Failures on additional scenes and an uncalibrated covariance limit generalization.</p>
+  </div>
+</section>
+
+<section id="method" class="alt">
+  <div class="container">
+    <h2>The estimator</h2>
+    <figure class="fig">
+      <img src="assets/overview.png" alt="Overview of the estimator: depth, color, and IMU inputs feed point selection, patch warping, and the inertial model, which feed one iterated error-state Kalman filter on a probabilistic voxel map">
+      <figcaption>Points from each depth image are selected for geometric diversity (ITPS, with a depth-bin fallback when
+      the depth is too sparse for normals), registered to a probabilistic voxel map as plane-distance measurements, and
+      fused with a direct photometric update on the same map and with inertial propagation in one iterated error-state
+      Kalman filter. The two diagnostics on the right only schedule and weight the photometric update; no state
+      correction is suppressed. Our earlier system, the baseline, applied a projection after depth registration and had
+      no photometric update.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="results">
+  <div class="container">
+    <h2>Results</h2>
+    <figure class="fig">
+      <img src="assets/teaser.png" alt="(a) Normal directions of the depth points in a UT-MM frame; (b) trajectories of Ours and the Baseline on CBD_Building_02; (c) their position error along the path">
+      <figcaption>(a) A depth frame of UT-MM <code>square-1</code>: the 53,782 candidate points tinted by the direction of
+      their surface normal. Floor points dominate, only 20&nbsp;% face sideways, and the walls are about 7&nbsp;m away, so
+      the frame barely constrains lateral motion. (b) The 173&nbsp;m walk of FAST-LIVO2 <code>CBD_Building_02</code>: five
+      runs of Ours and five of the Baseline, our earlier suppression-based system, SE(3)-aligned to the LiDAR–inertial
+      reference. (c) Position error against distance: Ours stays within 0.36&nbsp;m (ATE 0.14&nbsp;m in every run); the
+      Baseline runs reach 34&nbsp;m (ATE 14.8&nbsp;m). The Baseline also differs in its inertial model and quota fill; the
+      paper's ablation isolates the projection.</figcaption>
+    </figure>
+      <figure class="fig slim">
+        <img src="assets/success_curves.png" alt="Success curves: number of sequences handled below each ATE threshold, per method">
+        <figcaption>Success curves: for each error threshold, the number of sequences a method handles with SE(3) ATE
+        below it, averaged over its runs. Top: the 15 RGB-D sequences with a motion-capture reference; bottom: the three
+        LiDAR-rendered FAST-LIVO2 sequences. Ours reaches the top of both panels at 0.5&nbsp;m.</figcaption>
+      </figure>
+      <figure class="fig">
+        <img src="assets/covariance_result.png" alt="(a) Per-sequence ATE of the unrestricted filter and of the projected update with three covariances; (b) onset diagnostics on office1-4">
+        <figcaption>The covariance stored with a projected update. (a) Per-sequence mean SE(3) ATE of the unrestricted
+        estimator and of the same projection stored with the Joseph-form covariance, the splice, and the inflated splice
+        (&alpha;&nbsp;=&nbsp;10); bars mark the median over sequences. (b) Onset on <code>office1-4</code>: speed, the
+        discarded part of the correction, the splice-minus-Joseph covariance difference, and visual map points per
+        photometric update.</figcaption>
+      </figure>
+  </div>
+</section>
+
+<section id="data" class="alt">
+  <div class="container narrow">
+    <h2>Field recordings</h2>
+    <p>Twelve recordings from the LiDAR-free platform that motivates the paper: a RealSense D455 and its BMI055 IMU,
+    logged on an NVIDIA Jetson Orin NX (color and depth at 30&nbsp;Hz, IMU at 200&nbsp;Hz), as ROS&nbsp;1 bags. They have
+    vibration-contaminated IMU data and no external reference. Released under CC&nbsp;BY&nbsp;4.0 on
+    <a href="https://huggingface.co/datasets/tuananh05253/RGBD-Inertial-Degeneracy-Field">Hugging Face</a>.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Site</th><th>Sequence</th><th>Environment</th><th class="num">Duration (s)</th><th class="num">Size (GB)</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td><code>empty_1</code></td><td>greenhouse crop rows</td><td class="num">43.3</td><td class="num">4.65</td></tr>
+        <tr><td>A</td><td><code>empty_2</code></td><td>greenhouse crop rows</td><td class="num">22.7</td><td class="num">2.45</td></tr>
+        <tr><td>A</td><td><code>empty_3</code></td><td>greenhouse crop rows</td><td class="num">106.0</td><td class="num">11.39</td></tr>
+        <tr><td>A</td><td><code>floricane2_2</code></td><td>greenhouse crop rows</td><td class="num">8.8</td><td class="num">0.95</td></tr>
+        <tr><td>A</td><td><code>floricane2_2_2</code></td><td>greenhouse crop rows</td><td class="num">127.0</td><td class="num">13.65</td></tr>
+        <tr><td>A</td><td><code>canbarry_28_1</code></td><td>raspberry canes</td><td class="num">35.2</td><td class="num">3.78</td></tr>
+        <tr><td>A</td><td><code>outside_1</code></td><td>open field in sunlight</td><td class="num">45.2</td><td class="num">4.86</td></tr>
+        <tr><td>A</td><td><code>outside_2</code></td><td>open field in sunlight</td><td class="num">115.8</td><td class="num">12.45</td></tr>
+        <tr><td>B</td><td><code>Bolter_1</code></td><td>building corridors</td><td class="num">46.0</td><td class="num">4.95</td></tr>
+        <tr><td>B</td><td><code>Bolter_2</code></td><td>building corridors</td><td class="num">65.4</td><td class="num">7.03</td></tr>
+        <tr><td>B</td><td><code>Bolter_3</code></td><td>building corridors</td><td class="num">63.5</td><td class="num">6.82</td></tr>
+        <tr><td>B</td><td><code>Bolter_4</code></td><td>building corridors</td><td class="num">34.8</td><td class="num">3.74</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note">Site A is a commercial berry farm; Site B is a university building.</p>
+  </div>
+</section>
+
+<section id="code">
+  <div class="container narrow">
+    <h2>Code</h2>
+    <p>The estimator (ROS Noetic, CPU only, Docker build for amd64 and arm64), every configuration behind the paper's
+    tables and figures, the dataset converters, and the evaluators are on
+    <a href="https://github.com/tuananh1007/RGBD-Inertial-Degeneracy">GitHub</a> under the GPL v2.</p>
+<pre><code>git clone https://github.com/tuananh1007/RGBD-Inertial-Degeneracy.git
+cd RGBD-Inertial-Degeneracy
+docker build -t rgbd-inertial:v1.0 .
+python3 scripts/convert_utmm.py square-1.bag data/utmm/square-1_d455.bag
+BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh \
+  $PWD/results/utmm $PWD/data/utmm rgbd-inertial:v1.0 s_ours_lin 1 1 square-1
+python3 scripts/evaluate_runs.py results/utmm data/utmm</code></pre>
+  </div>
+</section>
+
+<section id="citation" class="alt">
+  <div class="container narrow">
+    <h2>Citation</h2>
+<pre><code>@unpublished{vu2026sampling,
+  title   = {Sampling, Fusion, and Covariance in {RGB-D}--Inertial Odometry under Depth Degeneracy},
+  author  = {Vu, Tuan-Anh and Zhao, Xiaoyang and Jawed, M. Khalid},
+  note    = {Under review},
+  year    = {2026}
+}</code></pre>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container narrow">
+    <p>This work was supported by the California Department of Pesticide Regulation. The contents may not reflect the
+    official views or policies of the State of California. The estimator builds on
+    <a href="https://github.com/hku-mars/FAST-LIVO2">FAST-LIVO2</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

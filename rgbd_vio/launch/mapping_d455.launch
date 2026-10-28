@@ -1,0 +1,53 @@
+<!--
+  RGB-D VIO — Intel RealSense D455
+  UCLA UAV Pest Control Project
+
+  Usage:
+    roslaunch rgbd_vio mapping_d455.launch
+
+  Prerequisites:
+    1. RealSense ROS wrapper running:
+         roslaunch realsense2_camera rs_camera.launch \
+           enable_depth:=true enable_color:=true enable_accel:=true \
+           enable_gyro:=true unite_imu_method:=copy align_depth:=false
+
+    2. (Optional) RViz for visualisation:
+         rviz -d $(find rgbd_vio)/rviz_cfg/mapping.rviz
+-->
+
+<launch>
+  <!-- ===== Config files ===== -->
+  <arg name="config_path"/>
+  <arg name="camera_path"/>
+  <!-- Optional override config (e.g. d455_no_itps.yaml for ablation) -->
+  <arg name="override_path" default=""/>
+
+  <!-- ===== RViz ===== -->
+  <arg name="rviz" default="false"/>
+
+  <!-- ===== Main node ===== -->
+  <node pkg="rgbd_vio"
+        type="rgbd_mapping_node"
+        name="rgbdMapping"
+        output="screen">
+
+    <!-- Load SLAM/LIO/VIO/IMU/depth parameters -->
+    <rosparam file="$(arg config_path)" command="load"/>
+
+    <!-- Load vikit-format camera parameters (cam_model, cam_width, cam_fx, …) -->
+    <rosparam file="$(arg camera_path)" command="load"/>
+
+    <!-- Optional parameter overrides (loaded last → takes precedence) -->
+    <rosparam if="$(eval override_path != '')"
+              file="$(arg override_path)" command="load"/>
+
+  </node>
+
+  <!-- ===== Optional RViz ===== -->
+  <group if="$(arg rviz)">
+    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz_rgbd_vio"
+          args="-d $(find rgbd_vio)/rviz_cfg/mapping.rviz"
+          output="screen"/>
+  </group>
+
+</launch>

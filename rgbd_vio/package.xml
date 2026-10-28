@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>rgbd_vio</name>
+  <version>0.1.0</version>
+  <description>
+    RGB-D Visual-Inertial Odometry for UAV Pest Control using Intel RealSense D455.
+    Uses the D455 depth image as a pseudo-LiDAR source, feeding it into the
+    FAST-LIVO2 LIO+VIO pipeline (no external LiDAR required).
+  </description>
+
+  <maintainer email="khalidjm@seas.ucla.edu">M. Khalid Jawed</maintainer>
+  <license>GPLv2</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>pcl_ros</depend>
+  <depend>tf</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>eigen_conversions</depend>
+  <depend>vikit_common</depend>
+  <depend>vikit_ros</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
+</package>

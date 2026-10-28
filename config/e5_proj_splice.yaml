@@ -1,0 +1,25 @@
+# E5 (2026-10-19): s_lin_proja_splice (Ours + projection, adaptive trigger, splice) writing the position covariance.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  oc_after_plain: true
+  oc_ekf_en: true
+  oc_cov_mode: splice
+  oc_cov_inflate: 1.0
+  oc_sched_from_ratio: true
+  oc_icp_cov_from_config: true   # sparse-depth path applies oc_cov_mode / oc_cov_inflate
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  cov_output_en: true
+  pose_output_en: true

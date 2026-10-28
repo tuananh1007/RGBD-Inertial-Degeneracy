@@ -1,0 +1,17 @@
+# Ablation of ours.yaml: photometric (VIO) update off.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 0
+common:
+  img_en: 0
+evo:
+  pose_output_en: true

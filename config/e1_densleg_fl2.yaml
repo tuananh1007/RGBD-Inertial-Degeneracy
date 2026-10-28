@@ -1,0 +1,24 @@
+# E1 (2026-10-19): Ours (s_ours_lin) with our density form (variance = nd^2 * h, gravity random walk kept)
+# and the legacy magnitudes of the base config converted at the FAST-LIVO2 Livox Avia IMU rate f = 200 Hz
+# (median sample interval): nd = sqrt(cov / f), rw = sqrt(b_cov / f).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+  gyr_noise_density: 0.038729833462
+  acc_noise_density: 0.038729833462
+  gyr_random_walk: 0.000707106781
+  acc_random_walk: 0.000707106781
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

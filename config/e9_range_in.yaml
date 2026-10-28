@@ -1,0 +1,20 @@
+# E9 (2026-10-21): s_ours_lin with the depth range cap raised to 10.0 m
+# (indoor default 5 m, ROVER 8 m) so that far planes and depth-backed VIO points are kept in wide scenes.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+  max_depth: 10.0
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

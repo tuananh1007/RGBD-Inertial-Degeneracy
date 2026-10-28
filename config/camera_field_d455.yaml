@@ -1,0 +1,21 @@
+# Field D455 colour intrinsics from the camera_info recorded in the Site B bags (same unit at both sites)
+# ============================================================
+#  vikit camera parameters for the field recordings (Sites A and B)
+#  Intel RealSense D455 — 1280×720 colour stream
+#
+#  Extracted from bag metadata (factory calibration):
+#    fx=641.84  fy=641.22  cx=647.87  cy=353.05
+#    D=[-0.0549, 0.0623, 0.0000, 0.0010, -0.0196]
+#    (5-param plumb_bob; we use first 4 for radtan)
+# ============================================================
+cam_model: Pinhole
+cam_width:  1280
+cam_height: 720
+cam_fx: 642.02
+cam_fy: 641.39
+cam_cx: 647.87
+cam_cy: 353.05
+cam_d0: -0.054869
+cam_d1:  0.062260
+cam_d2:  0.000018
+cam_d3:  0.000998

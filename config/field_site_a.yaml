@@ -1,0 +1,166 @@
+# Field runs: the earlier field configurations with (1) the topics actually in the bags, (2) the D455
+# depth->colour offset, (3) staged-IMU noise densities, (4) the D4xx mapping parameters (see the note
+# below), which apply to every variant including Baseline.
+# ============================================================
+#  RGB-D VIO  —  Site A field data configuration
+#  Intel RealSense D455 — recorded on Jetson Orin NX (ROS2 Humble)
+#  Converted to ROS1 bags for offline evaluation.
+#
+#  Colour: 1280×720 rgb8 @ 30 Hz
+#  Depth:  848×480  16UC1 @ 30 Hz
+#  IMU:    BMI055 @ 200 Hz
+# ============================================================
+# Site A mapping/noise (2026-10-05 field probes): the D4xx mapping of the other datasets instead of the earlier system's
+# 'outdoor' tuning (voxel 1.0), with 0.15 m voxels / 0.05 m filter for the close-range, ground-level views
+# (camera ~20 cm above ground), and IMU noise densities set to the vibration level measured from these
+# recordings' own IMU (1-s high-pass, per-axis density; ~10x the BMI055 datasheet value).
+
+common:
+  depth_topic:      "/camera/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/camera/depth/camera_info"
+  imu_topic:        "/camera/camera/imu"
+  img_topic:        "/camera/camera/color/image_raw"
+  img_en:  1
+  depth_en: true
+  lio_en: true
+
+# ---- Extrinsics ----------------------------------------------------
+extrin_calib:
+  extrinsic_T: [0.0, 0.0, 0.0]
+  extrinsic_R: [1, 0, 0,
+                0, 1, 0,
+                0, 0, 1]
+  # D455 depth (left IR) -> colour, as measured on the UT-MM D455 (the earlier configuration copied a D435i value)
+  Rcl: [1, 0, 0,
+         0, 1, 0,
+         0, 0, 1]
+  Pcl: [-0.0590, 0.0000, 0.0000]
+
+# ---- Temporal offsets ----------------------------------------------
+time_offset:
+  imu_time_offset:   0.0
+  img_time_offset:   0.0
+  depth_time_offset: 0.0
+  exposure_time_init: 0.0
+
+# ---- Depth preprocessing -------------------------------------------
+depth:
+  min_depth:        0.30
+  max_depth:        5.00
+  depth_scale:      0.001
+  point_filter_num: 4
+  noise_frac:    0.01
+  lateral_noise: 0.005
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.10
+  depth_bins_en:    true
+  num_depth_bins:   10
+  max_pts_per_bin:  2500
+  info_select_en:   true
+  target_points:    20000
+  rebalance_alpha:  0.5
+
+# ---- LIO voxel parameters ------------------------------------------
+# Tuned for D455 outdoors: larger voxels, coarser downsampling, and relaxed
+# matching thresholds to compensate for higher depth noise at range (3-5 m).
+preprocess:
+  filter_size_surf: 0.05
+
+lio:
+  max_iterations:  5
+  dept_err:        0.03
+  beam_err:        0.01
+  min_eigen_value: 0.005
+  voxel_size:      0.15
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+  deg_threshold:         0.07
+  oc_ekf_en:          true
+  oc_lambda_thresh:   0.05
+  oc_adaptive_thresh_en: true
+  oc_lambda_lo:       0.01
+  oc_lambda_hi:       0.10
+  oc_adapt_kappa_knee: 100.0
+  oc_cov_inflate:     10.0
+  oc_persist_guard_en: false
+  oc_persist_frames:   30
+  deg_isotropy_thresh:   0.10
+  skip_vio_sigma_thresh: 0.30
+
+local_map:
+  map_sliding_en: true
+  half_map_size:  50
+  sliding_thresh: 8
+  lv_max_pts:        50000
+  lv_voxel_size:     2.0
+  lv_update_interval: 30
+
+# ---- VIO patch tracking --------------------------------------------
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  normal_en:              true
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false
+  inv_expo_cov:           0.1
+
+# ---- IMU noise model -----------------------------------------------
+imu:
+  imu_en:       true
+  imu_int_frame: 30
+  acc_cov:       0.3
+  gyr_cov:       0.3
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: D455 BMI055 datasheet x6 (as openloris.yaml)
+  gyr_noise_density: 0.015
+  acc_noise_density: 0.045
+  gyr_random_walk:   0.000011
+  acc_random_walk:   0.00041
+
+# ---- UAV flight-controller integration -----------------------------
+uav:
+  imu_rate_odom:   true
+  gravity_align_en: true
+
+# ---- Publishing ----------------------------------------------------
+publish:
+  dense_map_en:       true
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+# ---- Logging / evaluation ------------------------------------------
+evo:
+  seq_name:      "site_a"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+# ---- Camera model (vikit) ------------------------------------------
+# Must match colour camera: 1280×720, plumb_bob distortion
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [-0.054869, 0.062260, 0.000018, 0.000998]
+  intrinsics: [642.542, 641.917, 647.872, 353.055]
+  resolution: [1280, 720]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  linearity_window: 20

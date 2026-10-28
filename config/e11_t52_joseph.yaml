@@ -1,0 +1,27 @@
+# E11 covariance replication (2026-10-26): the projection of our earlier system applied after the depth update of Ours
+# with a fixed trigger 0.52 (the OpenLORIS office median selection isotropy) and the Joseph-form covariance; otherwise s_ours_lin (strided ITPS, staged IMU, linearity variance).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  oc_after_plain: true
+  oc_ekf_en: true
+  oc_cov_mode: joseph
+  oc_cov_inflate: 1.0
+  oc_sched_from_ratio: true
+  oc_icp_cov_from_config: true   # sparse-depth path applies oc_cov_mode / oc_cov_inflate
+  oc_adaptive_thresh_en: false
+  oc_lambda_thresh: 0.52
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

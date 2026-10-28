@@ -1,0 +1,8 @@
+# TUM RGB-D Freiburg 1 camera parameters
+cam_model: Pinhole
+cam_width:  640
+cam_height: 480
+cam_fx: 517.3
+cam_fy: 516.5
+cam_cx: 318.6
+cam_cy: 255.3

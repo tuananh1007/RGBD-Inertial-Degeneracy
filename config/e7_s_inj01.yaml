@@ -1,0 +1,19 @@
+# E7 (2026-10-19): Ours (ITPS strided) keeping 0.01 of the lateral-normal candidates (degeneracy injection).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  inject_lateral_keep: 0.01
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

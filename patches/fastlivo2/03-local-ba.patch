@@ -1,0 +1,316 @@
+--- a/include/vio.h	2026-10-08 13:37:04.355353443 -0700
++++ b/include/vio.h	2026-10-08 13:37:04.364353411 -0700
+@@ -111,6 +111,11 @@
+   // chi-square region gate_chi2 of the prior (depth-inertial) covariance; 0 disables the gate.
+   double gate_chi2 = 0.0, gate_d2 = 0.0;
+   int gate_rejected = 0;
++  // Local photometric bundle adjustment (off by default, see localBundleAdjust): every lba_period frames, refine
++  // the poses of the lba_window most recent frames that observe the tracked points together with the points.
++  bool lba_en = false;
++  int lba_window = 6, lba_period = 5, lba_iters = 4, lba_max_points = 300, lba_max_obs = 6;
++  double lba_sigma_rot = 0.005, lba_sigma_pos = 0.02, lba_huber = 20.0, lba_max_move = 0.1;
+   
+   SubSparseMap *visual_submap;
+   std::vector<std::vector<V3D>> rays_with_sample_points;
+@@ -167,6 +172,7 @@
+   void insertPointIntoVoxelMap(VisualPoint *pt_new);
+   void plotTrackedPoints();
+   void updateFrameState(StatesGroup state);
++  void localBundleAdjust(const cv::Mat &img);
+   void projectPatchFromRefToCur(const unordered_map<VOXEL_LOCATION, VoxelOctoTree *> &plane_map);
+   void updateReferencePatch(const unordered_map<VOXEL_LOCATION, VoxelOctoTree *> &plane_map);
+   void precomputeReferencePatches(int level);
+--- a/src/vio.cpp	2026-10-08 13:37:04.356353440 -0700
++++ b/src/vio.cpp	2026-10-08 13:40:12.983666964 -0700
+@@ -11,6 +11,7 @@
+ */
+ 
+ #include "vio.h"
++#include <map>
+ 
+ VIOManager::VIOManager()
+ {
+@@ -1696,6 +1697,274 @@
+   new_frame_->T_f_w_ = SE3(Rcw, Pcw);
+ }
+ 
++// Local photometric bundle adjustment.  Every lba_period frames, the camera poses of the lba_window most
++// recent frames that observe the points tracked in this frame and the 3D positions of those points are refined
++// jointly, by minimizing the intensity difference between each point's reference patch, warped into every
++// frame that observes the point, and that frame's image.  Older frames that observe the points enter with fixed
++// poses, as in the local bundle adjustment of ORB-SLAM.  Poses have a prior around their filter estimate
++// (lba_sigma_rot, lba_sigma_pos) and points around their depth measurement (their covariance).  Only the
++// refined point positions are written back; the filter state is not changed, so image measurements the filter
++// has already fused are not fused a second time.
++void VIOManager::localBundleAdjust(const cv::Mat &img)
++{
++  if (total_points == 0 || !normal_en) return;
++  const double t0 = omp_get_wtime();
++
++  struct LbaFrame { SE3 T, T0; cv::Mat img; double inv_expo; int var; };
++  struct LbaObs { int frame, level; Matrix2d A; std::vector<float> ref; double inv_expo_ref; };
++  struct LbaPoint { VisualPoint *pt; V3D X, X0; M3D info; std::vector<LbaObs> obs; };
++
++  // Points tracked in this frame, most observed first (ties by submap order).
++  std::vector<int> order;
++  for (int i = 0; i < total_points; i++)
++  {
++    VisualPoint *pt = visual_submap->voxel_points[i];
++    if (pt != nullptr && pt->has_ref_patch_ && pt->ref_patch != nullptr && pt->is_normal_initialized_) order.push_back(i);
++  }
++  std::stable_sort(order.begin(), order.end(), [&](int a, int b)
++                   { return visual_submap->voxel_points[a]->obs_.size() > visual_submap->voxel_points[b]->obs_.size(); });
++  if ((int)order.size() > lba_max_points) order.resize(lba_max_points);
++
++  // Observations: the current frame, the reference patch's frame, and the most recent other observations.
++  std::map<int, int> frame_index;
++  std::vector<LbaFrame> frames;
++  auto add_frame = [&](int id, const SE3 &T, const cv::Mat &im, double inv_expo)
++  {
++    auto it = frame_index.find(id);
++    if (it != frame_index.end()) return it->second;
++    frames.push_back({T, T, im, inv_expo, -1});
++    return frame_index[id] = (int)frames.size() - 1;
++  };
++  std::vector<LbaPoint> points;
++  std::vector<float> buf(patch_size_total);
++  for (int i : order)
++  {
++    VisualPoint *pt = visual_submap->voxel_points[i];
++    Feature *ref = pt->ref_patch;
++    std::vector<std::pair<int, std::pair<SE3, std::pair<cv::Mat, double>>>> views;  // (id, (pose, (image, inv_expo)))
++    views.push_back({new_frame_->id_, {new_frame_->T_f_w_, {img, state->inv_expo_time}}});
++    views.push_back({ref->id_, {ref->T_f_w_, {ref->img_, ref->inv_expo_time_}}});
++    for (auto it = pt->obs_.rbegin(); it != pt->obs_.rend() && (int)views.size() < lba_max_obs; ++it)
++      views.push_back({(*it)->id_, {(*it)->T_f_w_, {(*it)->img_, (*it)->inv_expo_time_}}});
++
++    LbaPoint P{pt, pt->pos_, pt->pos_, M3D::Zero(), {}};
++    P.info = (pt->covariance_ + 2.5e-5 * M3D::Identity()).inverse();   // floor of 5 mm
++    const V3D pf_ref = ref->T_f_w_ * pt->pos_;
++    const V3D n_ref = (ref->T_f_w_.rotation_matrix() * pt->normal_).normalized();
++    std::set<int> seen;
++    for (auto &v : views)
++    {
++      if (!seen.insert(v.first).second || v.second.second.first.empty()) continue;
++      LbaObs o;
++      getWarpMatrixAffineHomography(*cam, ref->px_, pf_ref, n_ref, v.second.first * ref->T_f_w_.inverse(), 0, o.A);
++      if (!o.A.allFinite() || std::fabs(o.A.determinant()) < 1e-6) continue;
++      o.level = getBestSearchLevel(o.A, 2);
++      std::fill(buf.begin(), buf.end(), std::numeric_limits<float>::quiet_NaN());
++      warpAffine(o.A, ref->img_, ref->px_, ref->level_, o.level, 0, patch_size_half, buf.data());
++      if (!std::isfinite(buf[0])) continue;
++      o.ref = buf;
++      o.inv_expo_ref = ref->inv_expo_time_;
++      o.frame = add_frame(v.first, v.second.first, v.second.second.first, v.second.second.second);
++      P.obs.push_back(o);
++    }
++    if (P.obs.size() >= 2) points.push_back(P);
++  }
++  if (points.empty()) return;
++
++  // The lba_window most recent frames are variables; the others keep their poses.
++  int n_var = 0;
++  for (auto it = frame_index.rbegin(); it != frame_index.rend() && n_var < lba_window; ++it) frames[it->second].var = n_var++;
++  const auto cur_it = frame_index.find(new_frame_->id_);
++
++  const double inv_cov = 1.0 / img_point_cov;
++  Matrix<double, 6, 1> prior_info;
++  prior_info << V3D::Constant(1.0 / (lba_sigma_rot * lba_sigma_rot)), V3D::Constant(1.0 / (lba_sigma_pos * lba_sigma_pos));
++
++  // Cost (and, with H/b, the normal equations) at the current estimate.
++  MatrixXd Htt(6 * n_var, 6 * n_var);
++  VectorXd bt(6 * n_var);
++  std::vector<M3D> Hxx(points.size());
++  std::vector<V3D> bx(points.size());
++  std::vector<std::vector<Matrix<double, 6, 3>>> Htx(points.size(), std::vector<Matrix<double, 6, 3>>(n_var));
++  auto pose_error = [](const SE3 &T, const SE3 &T0)
++  {
++    const M3D dR = T.rotation_matrix() * T0.rotation_matrix().transpose();
++    const Eigen::AngleAxisd aa(dR);
++    Matrix<double, 6, 1> e;
++    e << aa.angle() * aa.axis(), T.translation() - dR * T0.translation();
++    return e;
++  };
++  auto evaluate = [&](bool linearize)
++  {
++    double cost = 0.0;
++    if (linearize) { Htt.setZero(); bt.setZero(); }
++    for (size_t p = 0; p < points.size(); p++)
++    {
++      LbaPoint &P = points[p];
++      if (linearize)
++      {
++        Hxx[p] = P.info;
++        bx[p] = P.info * (P.X - P.X0);
++        for (auto &m : Htx[p]) m.setZero();
++      }
++      cost += (P.X - P.X0).dot(P.info * (P.X - P.X0));
++      for (const LbaObs &o : P.obs)
++      {
++        const LbaFrame &F = frames[o.frame];
++        const V3D pc = F.T * P.X;
++        if (pc[2] < 0.1) continue;
++        const V2D px = cam->world2cam(pc);
++        const int scale = 1 << o.level;
++        const int margin = (patch_size_half + 2) * scale;
++        if (px[0] < margin || px[1] < margin || px[0] >= width - margin - 1 || px[1] >= height - margin - 1) continue;
++        MD(2, 3) Jpi;
++        computeProjectionJacobian(pc, Jpi);
++        M3D pc_hat;
++        pc_hat << SKEW_SYM_MATRX(pc);
++        const int u_i = floorf(px[0] / scale) * scale, v_i = floorf(px[1] / scale) * scale;
++        const float su = (px[0] - u_i) / scale, sv = (px[1] - v_i) / scale;
++        const float w_tl = (1.f - su) * (1.f - sv), w_tr = su * (1.f - sv), w_bl = (1.f - su) * sv, w_br = su * sv;
++        const uint8_t *data = (const uint8_t *)F.img.data;
++        Matrix<double, 6, 6> Hpp = Matrix<double, 6, 6>::Zero();
++        Matrix<double, 6, 3> Hpx = Matrix<double, 6, 3>::Zero();
++        Matrix<double, 6, 1> bp = Matrix<double, 6, 1>::Zero();
++        for (int x = 0; x < patch_size; x++)
++        {
++          const uint8_t *ptr = data + (v_i + x * scale - patch_size_half * scale) * width + u_i - patch_size_half * scale;
++          for (int y = 0; y < patch_size; ++y, ptr += scale)
++          {
++            const double val = w_tl * ptr[0] + w_tr * ptr[scale] + w_bl * ptr[scale * width] + w_br * ptr[scale * width + scale];
++            const double r = F.inv_expo * val - o.inv_expo_ref * o.ref[x * patch_size + y];
++            const double ar = std::fabs(r);
++            const double w = ar <= lba_huber ? 1.0 : lba_huber / ar;
++            cost += (ar <= lba_huber ? r * r : 2.0 * lba_huber * ar - lba_huber * lba_huber) * inv_cov;
++            if (!linearize) continue;
++            const double du = 0.5 * ((w_tl * ptr[scale] + w_tr * ptr[scale * 2] + w_bl * ptr[scale * width + scale] +
++                                      w_br * ptr[scale * width + scale * 2]) -
++                                     (w_tl * ptr[-scale] + w_tr * ptr[0] + w_bl * ptr[scale * width - scale] + w_br * ptr[scale * width]));
++            const double dv = 0.5 * ((w_tl * ptr[scale * width] + w_tr * ptr[scale + scale * width] + w_bl * ptr[width * scale * 2] +
++                                      w_br * ptr[width * scale * 2 + scale]) -
++                                     (w_tl * ptr[-scale * width] + w_tr * ptr[-scale * width + scale] + w_bl * ptr[0] + w_br * ptr[scale]));
++            MD(1, 2) Jimg;
++            Jimg << du, dv;
++            Jimg *= F.inv_expo / scale;
++            const MD(1, 3) Jpc = Jimg * Jpi;
++            const MD(1, 3) JX = Jpc * F.T.rotation_matrix();
++            Matrix<double, 1, 6> JT;
++            JT << -Jpc * pc_hat, Jpc;
++            const double wi = w * inv_cov;
++            Hxx[p] += wi * JX.transpose() * JX;
++            bx[p] += wi * JX.transpose() * r;
++            if (F.var < 0) continue;
++            Hpp += wi * JT.transpose() * JT;
++            Hpx += wi * JT.transpose() * JX;
++            bp += wi * JT.transpose() * r;
++          }
++        }
++        if (linearize && F.var >= 0)
++        {
++          Htt.block<6, 6>(6 * F.var, 6 * F.var) += Hpp;
++          bt.segment<6>(6 * F.var) += bp;
++          Htx[p][F.var] += Hpx;
++        }
++      }
++    }
++    for (const LbaFrame &F : frames)
++    {
++      if (F.var < 0) continue;
++      const Matrix<double, 6, 1> e = pose_error(F.T, F.T0);
++      cost += e.dot(prior_info.cwiseProduct(e));
++      if (!linearize) continue;
++      Htt.block<6, 6>(6 * F.var, 6 * F.var).diagonal() += prior_info;
++      bt.segment<6>(6 * F.var) += prior_info.cwiseProduct(e);
++    }
++    return cost;
++  };
++
++  // Levenberg-Marquardt with the points eliminated by the Schur complement.
++  const double cost0 = evaluate(true);
++  double cost = cost0, lambda = 1e-3;
++  int it = 0, accepted = 0;
++  for (; it < lba_iters; it++)
++  {
++    MatrixXd S = Htt;
++    S.diagonal() *= 1.0 + lambda;
++    VectorXd g = bt;
++    std::vector<M3D> Minv(points.size());
++    for (size_t p = 0; p < points.size(); p++)
++    {
++      M3D Hd = Hxx[p];
++      Hd.diagonal() *= 1.0 + lambda;
++      Minv[p] = Hd.inverse();
++      for (int v1 = 0; v1 < n_var; v1++)
++      {
++        if (Htx[p][v1].isZero()) continue;
++        const Matrix<double, 6, 3> HM = Htx[p][v1] * Minv[p];
++        g.segment<6>(6 * v1) -= HM * bx[p];
++        for (int v2 = 0; v2 < n_var; v2++)
++          if (!Htx[p][v2].isZero()) S.block<6, 6>(6 * v1, 6 * v2) -= HM * Htx[p][v2].transpose();
++      }
++    }
++    const VectorXd dT = S.ldlt().solve(-g);
++    if (!dT.allFinite()) break;
++    std::vector<SE3> T_old(frames.size());
++    std::vector<V3D> X_old(points.size());
++    for (size_t f = 0; f < frames.size(); f++)
++    {
++      T_old[f] = frames[f].T;
++      if (frames[f].var < 0) continue;
++      const Matrix<double, 6, 1> d = dT.segment<6>(6 * frames[f].var);
++      const double angle = d.head<3>().norm();
++      M3D dR = M3D::Identity();
++      if (angle > 1e-12) dR = Eigen::AngleAxisd(angle, d.head<3>() / angle).toRotationMatrix();
++      frames[f].T = SE3(dR * frames[f].T.rotation_matrix(), dR * frames[f].T.translation() + d.tail<3>());
++    }
++    for (size_t p = 0; p < points.size(); p++)
++    {
++      X_old[p] = points[p].X;
++      V3D rhs = bx[p];
++      for (int v = 0; v < n_var; v++) rhs += Htx[p][v].transpose() * dT.segment<6>(6 * v);
++      points[p].X -= Minv[p] * rhs;
++    }
++    const double new_cost = evaluate(false);
++    if (std::isfinite(new_cost) && new_cost < cost)
++    {
++      cost = new_cost;
++      accepted++;
++      lambda = std::max(1e-6, lambda * 0.5);
++      if (dT.norm() < 1e-6) break;
++      evaluate(true);
++    }
++    else
++    {
++      for (size_t f = 0; f < frames.size(); f++) frames[f].T = T_old[f];
++      for (size_t p = 0; p < points.size(); p++) points[p].X = X_old[p];
++      lambda *= 4.0;
++      if (lambda > 1e3) break;
++    }
++  }
++
++  // Write back the points whose move is plausible under their depth prior.
++  int moved = 0;
++  std::vector<double> dx;
++  for (LbaPoint &P : points)
++  {
++    const V3D d = P.X - P.X0;
++    if (!d.allFinite() || d.norm() > lba_max_move || d.dot(P.info * d) > 16.0) continue;
++    P.pt->pos_ = P.X;
++    dx.push_back(d.norm());
++    moved++;
++  }
++  std::sort(dx.begin(), dx.end());
++  const Matrix<double, 6, 1> e_cur = cur_it == frame_index.end() ? Matrix<double, 6, 1>::Zero().eval()
++                                                                 : pose_error(frames[cur_it->second].T, frames[cur_it->second].T0);
++  int n_obs = 0;
++  for (const LbaPoint &P : points) n_obs += P.obs.size();
++  printf("[LBA] frames %zu var %d pts %zu obs %d cost %.4g -> %.4g it %d acc %d moved %d dx_med %.4f cur_drot %.5f cur_dpos %.5f ms %.2f\n",
++         frames.size(), n_var, points.size(), n_obs, cost0, cost, it, accepted, moved, dx.empty() ? 0.0 : dx[dx.size() / 2],
++         e_cur.head<3>().norm(), e_cur.tail<3>().norm(), 1e3 * (omp_get_wtime() - t0));
++}
++
+ void VIOManager::plotTrackedPoints()
+ {
+   int total_points = visual_submap->voxel_points.size();
+@@ -1844,6 +2113,8 @@
+ 
+   updateReferencePatch(feat_map);
+ 
++  if (lba_en && frame_count % lba_period == 0) localBundleAdjust(img);
++
+   double t7 = omp_get_wtime();
+   
+   if(colmap_output_en)  dumpDataForColmap();

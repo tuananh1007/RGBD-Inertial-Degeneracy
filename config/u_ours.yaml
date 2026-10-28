@@ -1,0 +1,22 @@
+# Uniform-draw base (2026-10-16 rerun): ours.yaml with depth/itps_uniform_random = true.
+# Base configuration: staged IMU (continuous-time noise, staged initialisation, no bias re-inflation),
+# plain IEKF depth update, ITPS point selection with a depth-bin fallback below 1000 candidates,
+# photometric (VIO) update with adaptive frame scheduling.  The linearity-dependent photometric
+# variance of P2 is off (it hurt the corridor-like OpenLORIS sequences, Supplement S2).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 0
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

@@ -1,0 +1,12 @@
+# ============================================================
+#  vikit camera parameters for the Rosario dataset v2 (infra1 of the D435i)
+#  1280x720 rectified, decimated by 2 in convert_rosario.py (intrinsics / 2);
+#  depth and infra1 camera_info: fx = fy = 647.0065, cx 648.2324, cy 350.1270 at 1280x720.
+# ============================================================
+cam_model: Pinhole
+cam_width:  640
+cam_height: 360
+cam_fx: 323.5032
+cam_fy: 323.5032
+cam_cx: 324.1162
+cam_cy: 175.0635

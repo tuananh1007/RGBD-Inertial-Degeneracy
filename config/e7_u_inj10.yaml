@@ -1,0 +1,20 @@
+# E7 (2026-10-19): uniform draw keeping 0.1 of the lateral-normal candidates (degeneracy injection).
+# Ablation of ours.yaml: with the linearity-dependent photometric variance (= P2).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  inject_lateral_keep: 0.1
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

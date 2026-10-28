@@ -1,0 +1,13 @@
+# FAST-LIVO2 hku preset camera (HKU_*, CBD_02, CBD_03)
+cam_model: Pinhole
+cam_width:  640
+cam_height: 512
+cam_fx: 588.14371
+cam_fy: 588.10793
+cam_cx: 296.05943
+cam_cy: 254.54322
+# radtan distortion (calibration.yaml, scale-invariant)
+cam_d0: -0.13218037625958456
+cam_d1:  0.15360732717073536
+cam_d2:  0.00036918417348059815
+cam_d3: -0.00031715324469463964

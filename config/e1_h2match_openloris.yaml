@@ -1,0 +1,25 @@
+# E1 (2026-10-19): Ours (s_ours_lin) with the legacy per-sample noise form (variance = cov * h^2, no
+# gravity random walk) and our densities as magnitudes, matched at the OpenLORIS D435i IMU rate f = 255 Hz
+# (median sample interval): cov = nd^2 * f, b_cov = rw^2 * f.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+  legacy_noise_scaling: true
+  acc_cov: 0.020655
+  gyr_cov: 0.00057375
+  b_acc_cov: 0.0000428655
+  b_gyr_cov: 0.000000030855
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

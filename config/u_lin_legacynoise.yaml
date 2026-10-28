@@ -1,0 +1,21 @@
+# Uniform-draw base (2026-10-16 rerun): lin_legacynoise.yaml with depth/itps_uniform_random = true.
+# Legacy-IMU split: staged initialization, but FAST-LIVO2-style discrete noise scaling (variance = cov * h^2,
+# values imu/acc_cov, gyr_cov, b_*_cov of the base config; no gravity random walk).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+  legacy_noise_scaling: true
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

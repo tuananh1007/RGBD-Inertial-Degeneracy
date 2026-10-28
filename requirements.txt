@@ -1,0 +1,6 @@
+# Host-side converters and evaluators (scripts/), tested with Python 3.12; no ROS installation needed
+numpy==2.4.3
+scipy==1.17.1
+opencv-python==4.13.0.92
+rosbags==0.11.0
+pyyaml==6.0.2

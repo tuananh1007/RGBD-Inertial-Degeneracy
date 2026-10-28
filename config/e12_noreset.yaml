@@ -1,0 +1,20 @@
+# E12 consistency simulation (2026-10-26): Ours with the covariance output and WITHOUT the inertial covariance restart of the staged initialization (imu/init_cov_reset).
+imu:
+  init_mode: staged
+  init_cov_reset: false
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  cov_output_en: true
+  pose_output_en: true

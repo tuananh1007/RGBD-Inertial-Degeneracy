@@ -1,0 +1,22 @@
+# Strided-fill base (2026-10-16 rerun): lin_info10.yaml with depth/itps_fill = strided.
+# Information-space suppression (2026-10-12 rerun): the registration information H^T R^-1 H loses its translation
+# directions whose marginal eigenvalue ratio is below 0.10 before each IEKF solve (dtf_mode trans); covariance from
+# the reduced measurement, no projection afterwards.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: trans
+  dtf_thresh: 0.10
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

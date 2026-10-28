@@ -1,0 +1,141 @@
+# ============================================================
+#  TUM RGB-D Benchmark — Freiburg 1 sequences
+#  (fr1/desk, fr1/room, fr1/xyz, fr1/360, etc.)
+# ============================================================
+
+common:
+  depth_topic:      "/camera/depth/image_rect_raw"
+  depth_info_topic: "/camera/depth/camera_info"
+  imu_topic:        "/camera/imu"
+  img_topic:        "/camera/color/image_raw"
+  img_en:  1
+  depth_en: true
+  lio_en: true
+
+extrin_calib:
+  # TUM RGB-D: depth and colour from same Kinect → identity extrinsic
+  extrinsic_T: [0.0, 0.0, 0.0]
+  extrinsic_R: [1, 0, 0,
+                0, 1, 0,
+                0, 0, 1]
+  Rcl: [1, 0, 0,
+        0, 1, 0,
+        0, 0, 1]
+  Pcl: [0.0, 0.0, 0.0]
+
+time_offset:
+  imu_time_offset:   0.0
+  img_time_offset:   0.0
+  depth_time_offset: 0.0
+  exposure_time_init: 0.0
+
+depth:
+  min_depth:        0.40     # Kinect v1 min range
+  max_depth:        5.00     # Kinect v1 reliable ≤ 5 m
+  depth_scale:      0.0002   # TUM: val/5000 = metres → 1/5000
+  point_filter_num: 4
+  noise_frac:       0.015    # Kinect v1 noise ≈ 1.5 % of range
+  lateral_noise:    0.006
+  flying_pixel_en:     true
+  flying_pixel_thresh: 0.08
+  depth_bins_en:    true
+  num_depth_bins:   10
+  max_pts_per_bin:  2500
+  info_select_en:   true
+  target_points:    20000
+  rebalance_alpha:  0.5
+
+preprocess:
+  filter_size_surf: 0.10
+
+lio:
+  max_iterations:  5
+  dept_err:        0.03
+  beam_err:        0.01
+  min_eigen_value: 0.005
+  voxel_size:      0.3
+  max_layer:       2
+  max_points_num:  50
+  layer_init_num:  [5, 5, 5, 5, 5]
+  deg_threshold:         0.07
+  oc_ekf_en:          true
+  oc_lambda_thresh:   0.05
+  oc_adaptive_thresh_en: true
+  oc_lambda_lo:       0.01
+  oc_lambda_hi:       0.10
+  oc_adapt_kappa_knee: 20.0
+  oc_cov_inflate:     10.0
+  oc_persist_guard_en: false
+  oc_persist_frames:   30
+  deg_isotropy_thresh:   0.10
+  skip_vio_sigma_thresh: 0.30
+
+local_map:
+  map_sliding_en: true
+  half_map_size:  30
+  sliding_thresh: 5
+  lv_max_pts:        50000
+  lv_voxel_size:     2.0
+  lv_update_interval: 30
+
+vio:
+  max_iterations:         5
+  outlier_threshold:      1000
+  img_point_cov:          100
+  patch_size:             8
+  patch_pyrimid_level:    4
+  normal_en:              true
+  raycast_en:             false
+  inverse_composition_en: false
+  exposure_estimate_en:   false
+  inv_expo_cov:           0.1
+
+imu:
+  imu_en:       true
+  imu_int_frame: 30
+  acc_cov:       0.3     # synthesised IMU — use moderate covariance
+  gyr_cov:       0.3
+  b_acc_cov:     0.0001
+  b_gyr_cov:     0.0001
+  # staged mode (imu/init_mode: staged) continuous-time densities: synthetic IMU: generator densities x2
+  gyr_noise_density: 0.008
+  acc_noise_density: 0.024
+  gyr_random_walk:   0.00001
+  acc_random_walk:   0.0001
+
+uav:
+  imu_rate_odom:   false
+  gravity_align_en: true
+
+publish:
+  dense_map_en:       false
+  pub_effect_point_en: false
+  pub_scan_num:       1
+  blind_rgb_points:   0.0
+
+evo:
+  seq_name:      "tum_fr1"
+  pose_output_en: true     # enable TUM-format trajectory output for evo
+
+pcd_save:
+  pcd_save_en:      false
+  type:             0
+  colmap_output_en: false
+  filter_size_pcd:  0.10
+  interval:         -1
+
+image_save:
+  img_save_en: false
+  interval:    1
+
+cam0:
+  camera_model: pinhole
+  distortion_model: radtan
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  intrinsics: [517.3, 516.5, 318.6, 255.3]
+  resolution: [640, 480]
+
+debug:
+  plot_time: -10
+  frame_cnt:  6
+  linearity_window: 20

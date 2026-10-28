@@ -1,0 +1,21 @@
+# E10 (2026-10-22): Ours with the covariance output (= e5_ours)
+# and the variance of every depth residual multiplied by 1 (lio/meas_var_scale; 1 = Ours).
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  meas_var_scale: 1.0
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  cov_output_en: true
+  pose_output_en: true

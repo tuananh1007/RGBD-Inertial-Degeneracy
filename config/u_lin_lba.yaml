@@ -1,0 +1,32 @@
+# Uniform-draw base (2026-10-16 rerun): lin_lba.yaml with depth/itps_uniform_random = true.
+# Ours (ours_lin.yaml) with the local photometric bundle adjustment of patches/fastlivo2/03-local-ba.patch:
+# every 5 frames, the 6 most recent frames observing the tracked points and the points are refined jointly;
+# only the point positions are written back.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+vio:
+  lba_en: true
+  lba_window: 6
+  lba_period: 5
+  lba_iters: 4
+  lba_max_points: 300
+  lba_max_obs: 6
+  lba_sigma_rot: 0.005
+  lba_sigma_pos: 0.02
+  lba_huber: 20.0
+  lba_max_move: 0.1
+evo:
+  pose_output_en: true

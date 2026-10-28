@@ -1,0 +1,18 @@
+# Strided-fill base (2026-10-16 rerun): lin_legacy.yaml with depth/itps_fill = strided.
+# Ablation of ours_lin.yaml (Ours with the linearity-dependent photometric variance): see ours_legacy.yaml.
+imu:
+  init_mode: legacy
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_fill: strided
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

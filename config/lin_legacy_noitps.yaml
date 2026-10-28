@@ -1,0 +1,16 @@
+# Ablation of ours_lin.yaml: legacy IMU AND depth-stratified sampling (ITPS off), i.e. lin_legacy
+# with ITPS off.  Tests whether selection pays off without the staged inertial model.
+imu:
+  init_mode: legacy
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: false
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true

@@ -1,0 +1,19 @@
+# Uniform-draw base (2026-10-16 rerun): lin_legacy_novio.yaml with depth/itps_uniform_random = true.
+# Ablation of ours_lin.yaml: legacy IMU AND photometric (VIO) update off, i.e. lin_legacy without
+# VIO.  Tests whether the photometric update pays off without the staged inertial model.
+imu:
+  init_mode: legacy
+lio:
+  dtf_mode: plain
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 0
+common:
+  img_en: 0
+evo:
+  pose_output_en: true

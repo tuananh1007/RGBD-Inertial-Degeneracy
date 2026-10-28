@@ -1,0 +1,16 @@
+# ============================================================
+#  vikit camera parameters for UT-MM (RealSense D455 colour, 1280x720)
+#  From /realsense/color/camera_info (plumb_bob); k3 = -0.023 is dropped
+#  because vikit's pinhole model takes four radtan coefficients.
+# ============================================================
+cam_model: Pinhole
+cam_width:  1280
+cam_height: 720
+cam_fx: 642.651
+cam_fy: 641.807
+cam_cx: 654.476
+cam_cy: 359.594
+cam_d0: -0.0581
+cam_d1:  0.0708
+cam_d2: -0.0003
+cam_d3:  0.0014

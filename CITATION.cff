@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software or the field recordings, please cite the paper."
+type: software
+title: "Sampling, Fusion, and Covariance in RGB-D-Inertial Odometry under Depth Degeneracy: code and configurations"
+version: "1.0"
+authors:
+  - family-names: "Vu"
+    given-names: "Tuan-Anh"
+    affiliation: "University of California, Los Angeles"
+  - family-names: "Zhao"
+    given-names: "Xiaoyang"
+    affiliation: "University of California, Los Angeles"
+  - family-names: "Jawed"
+    given-names: "M. Khalid"
+    affiliation: "University of California, Los Angeles"
+repository-code: "https://github.com/tuananh1007/RGBD-Inertial-Degeneracy"
+url: "https://tuananh1007.github.io/RGBD-Inertial-Degeneracy/"
+license: GPL-2.0-only
+preferred-citation:
+  type: unpublished
+  title: "Sampling, Fusion, and Covariance in RGB-D-Inertial Odometry under Depth Degeneracy"
+  authors:
+    - family-names: "Vu"
+      given-names: "Tuan-Anh"
+    - family-names: "Zhao"
+      given-names: "Xiaoyang"
+    - family-names: "Jawed"
+      given-names: "M. Khalid"
+  notes: "Under review"
+  year: 2026

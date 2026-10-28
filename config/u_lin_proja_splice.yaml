@@ -1,0 +1,27 @@
+# Uniform-draw base (2026-10-16 rerun): lin_proja_splice.yaml with depth/itps_uniform_random = true.
+# Projection comparator (2026-10-12 rerun): Ours' plain update (which sets the scheduling ratio rho_t, as in Ours),
+# then the projection of our earlier system with its adaptive trigger (ratio threshold 0.01-0.10 on the selected-normal
+# matrix; on sparse depth on the matched map-plane normals) and the earlier covariance splice on both paths.
+imu:
+  init_mode: staged
+  bias_inflate_after: 1000000.0
+lio:
+  dtf_mode: plain
+  oc_after_plain: true
+  oc_ekf_en: true
+  oc_cov_mode: splice
+  oc_cov_inflate: 1.0
+  oc_sched_from_ratio: true
+  oc_icp_cov_from_config: true   # sparse-depth path applies oc_cov_mode / oc_cov_inflate
+depth:
+  info_select_en: true
+  itps_min_candidates: 1000
+  itps_uniform_random: true
+local_map:
+  lv_update_interval: 1000000000
+debug:
+  linearity_window: 1000000000
+common:
+  img_en: 1
+evo:
+  pose_output_en: true
