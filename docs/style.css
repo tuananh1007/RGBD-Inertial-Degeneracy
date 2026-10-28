@@ -82,7 +82,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .btn-off { background: var(--border); color: var(--fg-muted); cursor: default; }
 .btn-off:hover { background: var(--border); color: var(--fg-muted); }
 
-.video { margin: 0 auto; max-width: 560px; }
+.video { margin: 0 auto; max-width: 1080px; }
 .video video, .video img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); display: block; }
 figcaption { font-size: 14px; color: var(--fg-muted); margin-top: 10px; text-align: left; }
 
