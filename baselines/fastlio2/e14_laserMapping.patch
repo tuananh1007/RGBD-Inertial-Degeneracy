@@ -1,0 +1,95 @@
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index fc41408..bacd158 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -59,6 +59,7 @@
+ #include <livox_ros_driver/CustomMsg.h>
+ #include "preprocess.h"
+ #include <ikd-Tree/ikd_Tree.h>
++#include "e14_restriction.hpp"
+ 
+ #define INIT_TIME           (0.1)
+ #define LASER_POINT_COV     (0.001)
+@@ -635,6 +636,46 @@ void publish_path(const ros::Publisher pubPath)
+     }
+ }
+ 
++/*** restricted correction after the iterated update (e14_restriction.hpp) ***/
++int    e14_mode = 0;          // 0 off (logs the isotropy only), 1 Joseph P_L, 2 splice P_S, 3 unrestricted posterior P_K
++double e14_tau = 0.0, e14_inflate = 1.0;
++ofstream e14_traj;
++
++void e14_restrict(const state_ikfom &x_prop, const esekfom::esekf<state_ikfom, 12, input_ikfom>::cov &P_prop)
++{
++    M3D F = M3D::Zero(), Pi_t, Q_t;
++    for (int i = 0; i < effct_feat_num; i++)
++    {
++        V3D n(corr_normvect->points[i].x, corr_normvect->points[i].y, corr_normvect->points[i].z);
++        F += n * n.transpose();
++    }
++    double iso;
++    const int n_obs = e14::projector(F, e14_tau, Pi_t, Q_t, iso);
++    printf("[E14] t %.3f feats %d iso %.5f obs %d\n", lidar_end_time - first_lidar_time, effct_feat_num, iso, n_obs);
++    fflush(stdout);   // the container is killed at the end of a run
++    if (e14_mode == 0 || n_obs == 3) return;
++
++    esekfom::esekf<state_ikfom, 12, input_ikfom>::cov P = kf.get_P(), Pi, PL, PS;
++    state_ikfom x = kf.get_x();
++    const V3D dp = x.pos - x_prop.pos;
++    x.pos = x_prop.pos + Pi_t * dp;   // position only; rotation, velocity, biases keep the update
++    Pi.setIdentity();
++    Pi.block<3, 3>(0, 0) = Pi_t;
++    e14::covariances(P_prop, P, Pi, PL, PS);
++    if (e14_mode != 3) P = e14_mode == 1 ? PL : PS;
++    if (e14_inflate > 1.0)   // suppressed position directions, position block only (as oc_cov_inflate)
++    {
++        const M3D T = M3D::Identity() + (e14_inflate - 1.0) * Q_t;
++        P.block<3, 3>(0, 0) = T * P.block<3, 3>(0, 0) * T.transpose();
++    }
++    const M3D P_pos = P.block<3, 3>(0, 0);
++    printf("[E14P] t %.3f dp %.4e dropped %.4e dPF %.4e pvar %.4e\n", lidar_end_time - first_lidar_time, dp.norm(),
++           (Q_t * dp).norm(), (PS - PL).norm(), Eigen::SelfAdjointEigenSolver<M3D>(P_pos).eigenvalues()(2));
++    fflush(stdout);
++    kf.change_x(x);
++    kf.change_P(P);
++}
++
+ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_data)
+ {
+     double match_start = omp_get_wtime();
+@@ -791,6 +832,13 @@ int main(int argc, char** argv)
+     nh.param<int>("pcd_save/interval", pcd_save_interval, -1);
+     nh.param<vector<double>>("mapping/extrinsic_T", extrinT, vector<double>());
+     nh.param<vector<double>>("mapping/extrinsic_R", extrinR, vector<double>());
++    nh.param<int>("e14/mode", e14_mode, 0);
++    nh.param<double>("e14/tau", e14_tau, 0.0);
++    nh.param<double>("e14/inflate", e14_inflate, 1.0);
++    string e14_traj_path;
++    nh.param<string>("e14/traj_path", e14_traj_path, "");
++    if (!e14_traj_path.empty()) e14_traj.open(e14_traj_path, ios::out);
++    printf("[E14] mode %d tau %.4f inflate %.2f traj %s\n", e14_mode, e14_tau, e14_inflate, e14_traj_path.c_str());
+ 
+     p_pre->lidar_type = lidar_type;
+     cout<<"p_pre->lidar_type "<<p_pre->lidar_type<<endl;
+@@ -957,7 +1005,10 @@ int main(int argc, char** argv)
+             /*** iterated state estimation ***/
+             double t_update_start = omp_get_wtime();
+             double solve_H_time = 0;
++            const state_ikfom e14_x_prop = kf.get_x();
++            const esekfom::esekf<state_ikfom, 12, input_ikfom>::cov e14_P_prop = kf.get_P();
+             kf.update_iterated_dyn_share_modified(LASER_POINT_COV, solve_H_time);
++            e14_restrict(e14_x_prop, e14_P_prop);
+             state_point = kf.get_x();
+             euler_cur = SO3ToEuler(state_point.rot);
+             pos_lid = state_point.pos + state_point.rot * state_point.offset_T_L_I;
+@@ -967,6 +1018,10 @@ int main(int argc, char** argv)
+             geoQuat.w = state_point.rot.coeffs()[3];
+ 
+             double t_update_end = omp_get_wtime();
++            if (e14_traj.is_open())   // TUM line per update: IMU pose in the first IMU frame
++                e14_traj << fixed << setprecision(6) << lidar_end_time << " " << state_point.pos(0) << " " << state_point.pos(1)
++                         << " " << state_point.pos(2) << " " << geoQuat.x << " " << geoQuat.y << " " << geoQuat.z << " "
++                         << geoQuat.w << endl;
+ 
+             /******* Publish odometry *******/
+             publish_odometry(pubOdomAftMapped);

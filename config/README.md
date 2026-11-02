@@ -26,10 +26,10 @@ A run loads three files, in this order, each overriding the previous one (`rgbd_
 |---|---|
 | **Ours** | `s_ours_lin.yaml` |
 | Baseline (our earlier system) | `B.yaml` |
-| Ours without the photometric update ("− VIO"; on TUM RGB-D: `s_P2novio.yaml`) | `s_ours_novio.yaml` |
+| Ours without the photometric update ("− photometric"; on TUM RGB-D: `s_P2novio.yaml`) | `s_ours_novio.yaml` |
 | − ITPS selection (depth-stratified sampler); capped at 20,000 points | `lin_noitps.yaml`; `lin_noitps_eq.yaml` |
 | + projection (projection, covariance splice, and inflation of the earlier system) | `s_lin_oc.yaml` |
-| legacy IMU; with − ITPS; with − VIO | `s_lin_legacy.yaml`; `lin_legacy_noitps.yaml`; `s_lin_legacy_novio.yaml` |
+| legacy IMU; with − ITPS; with − photometric | `s_lin_legacy.yaml`; `lin_legacy_noitps.yaml`; `s_lin_legacy_novio.yaml` |
 | legacy initialization only; legacy noise only | `s_lin_legacyinit.yaml`; `s_lin_legacynoise.yaml` |
 | ITPS with the row-order fill; uniform sample of 20,000 points | `ours_lin.yaml`; `u_ours_lin.yaml` |
 | + projection (adaptive trigger) with Joseph form, splice, splice with $\alpha=10$ | `s_lin_proja_joseph.yaml`, `s_lin_proja_splice.yaml`, `s_lin_proja_full.yaml` |
@@ -46,6 +46,8 @@ are the files the `s_*` and `u_*` configurations were derived from (each file's 
 | Files | Experiment | Paper |
 |---|---|---|
 | `e11_*.yaml` | the projected update with Joseph-form, spliced, and inflated covariance at matched triggers | Section 5.5, Figure 4, Supplementary S2 |
+| `e15_*.yaml` | the `e11_t22_*` comparison with the photometric update off | Supplementary S12 |
+| `e14_*.yaml`, with `fl2lio_*.yaml` as `BASE_CFG` | upstream FAST-LIO2 with the same projection (`baselines/fastlio2`) | Supplementary S12 |
 | `e1_*.yaml` | inertial noise form and magnitudes, gravity random walk | Supplementary S10 |
 | `e2_*.yaml` | point budget | Supplementary S10 |
 | `e5_*.yaml`, `e10_*.yaml` | covariance output; scaled residual variances | Supplementary S10 |

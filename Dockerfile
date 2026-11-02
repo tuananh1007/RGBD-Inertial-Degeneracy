@@ -2,7 +2,7 @@
 # JetPack 5 or 6; the container needs no NVIDIA runtime).  Third-party sources are pinned to the commits used in the
 # paper: FAST-LIVO2 0d2c034 (with the two patches in patches/fastlivo2), rpg_vikit 6c886c8, Sophus a621ff.
 #
-#   docker build -t rgbd-inertial:v1.0 .
+#   docker build -t rgbd-inertial:v1.1 .
 FROM ros:noetic-ros-base
 ARG FASTLIVO2_COMMIT=0d2c0346107b75b59934975adec9a6eeeb913c64
 ARG VIKIT_COMMIT=6c886c8e5d83997806e00294826d528cea3581dd

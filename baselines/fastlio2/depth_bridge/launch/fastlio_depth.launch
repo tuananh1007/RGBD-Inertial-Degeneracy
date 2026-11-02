@@ -1,0 +1,17 @@
+<!-- Upstream FAST-LIO2 with the restriction module (node laserMapping, global parameters as in its
+     mapping_marsim.launch) on an RGB-D bag, the depth image fed as a point cloud by depth_to_cloud.py.  Same arguments
+     as rgbd_vio mapping_d455.launch (camera_path unused), so run_sequences.sh can drive it
+     (LAUNCH="depth_bridge fastlio_depth.launch" LOG_DIR_IN=/ws/src/fast_lio/Log/result). -->
+<launch>
+  <arg name="config_path"/>
+  <arg name="camera_path"/>
+  <arg name="override_path" default=""/>
+  <arg name="rviz" default="false"/>
+
+  <rosparam file="$(arg config_path)" command="load"/>
+  <rosparam if="$(eval override_path != '')" file="$(arg override_path)" command="load"/>
+  <param name="e14/traj_path" value="$(find fast_lio)/Log/result/traj.txt"/>
+
+  <node pkg="fast_lio" type="fastlio_mapping" name="laserMapping" output="screen"/>
+  <node pkg="depth_bridge" type="depth_to_cloud.py" name="depth_to_cloud" output="screen"/>
+</launch>

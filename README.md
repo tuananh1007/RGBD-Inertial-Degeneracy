@@ -24,6 +24,8 @@ points are fused in the same filter. It runs on ROS Noetic, on the CPU.
 | `patches/fastlivo2/` | two patches to FAST-LIVO2 `0d2c034`: a photometric consistency gate and local photometric bundle adjustment, both off unless configured |
 | `config/` | dataset, camera, and experiment configurations; [config/README.md](config/README.md) maps the methods of the paper to files |
 | `scripts/` | dataset converters, the runner, and the evaluators |
+| `baselines/fastlio2/` | upstream FAST-LIO2 with the projection of the earlier system, for the check in Supplementary S12 |
+| `jetson/` | the timing benchmark of Supplementary S6 |
 | `Dockerfile` | the build: Ubuntu 20.04, ROS Noetic, pinned third-party commits; amd64 and arm64 |
 | `docs/` | the project page |
 
@@ -36,7 +38,8 @@ online method compared in the paper achieves; the measured front-end stages aver
 desktop CPU cores. With matched triggers, storing the spliced covariance of a projected update raises the
 per-sequence error by geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS-Scene and diverges in every run of a
 long outdoor sequence, whereas the same projection with the Joseph-form covariance has errors similar to the
-unrestricted filter. The estimator fails on several additional scenes (long corridors, a crop row, the
+unrestricted filter. With the photometric update off on UT-MM, and in upstream FAST-LIO2 on seven sequences, the two
+covariances give similar errors, so the stored covariance is decisive only when a further update uses it. The estimator fails on several additional scenes (long corridors, a crop row, the
 OpenLORIS-Scene market, and the ROVER garden recordings), and its reported covariance is not calibrated; the paper and
 its supplement report these cases.
 
@@ -46,7 +49,7 @@ its supplement report these cases.
 
 ```bash
 git clone https://github.com/tuananh1007/RGBD-Inertial-Degeneracy.git && cd RGBD-Inertial-Degeneracy
-docker build -t rgbd-inertial:v1.0 .          # about 5 min on an 8-core desktop; runs the two unit tests
+docker build -t rgbd-inertial:v1.1 .          # about 5 min on an 8-core desktop; runs the two unit tests
 pip install -r requirements.txt               # converters and evaluators, on the host
 ```
 
@@ -59,7 +62,7 @@ python3 scripts/convert_utmm.py /path/to/square-1.bag data/utmm/square-1_d455.ba
 
 # 2. Play it in real time into the estimator (Ours = s_ours_lin), one run on cores 0-4
 BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml \
-  bash scripts/run_sequences.sh $PWD/results/utmm $PWD/data/utmm rgbd-inertial:v1.0 s_ours_lin 1 1 square-1
+  bash scripts/run_sequences.sh $PWD/results/utmm $PWD/data/utmm rgbd-inertial:v1.1 s_ours_lin 1 1 square-1
 
 # 3. Score it: SE(3) ATE, 1 s RPE, completion -> results/utmm/metrics.csv
 python3 scripts/evaluate_runs.py results/utmm data/utmm
@@ -71,6 +74,38 @@ containers pinned to `CORES_PER_JOB` cores each (default 5), and writes `OUT/<VA
 format, IMU frame), the log, and a row per run in `OUT/runs.csv`. Existing trajectories are skipped. The paper ran
 five runs per sequence with four cores per container on an otherwise idle machine; replay is real time, so results
 vary from run to run.
+
+## One update per frame
+
+Supplementary S12 repeats the covariance comparison with one update per frame. With the photometric update off, on UT-MM:
+
+```bash
+BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/noupdate $PWD/data/utmm rgbd-inertial:v1.1 \
+  "s_ours_novio e15_novio_t22_joseph e15_novio_t22_splice e15_novio_t22_splice10" 5 1
+```
+
+With the same projection in upstream FAST-LIO2, on the sequences where the unrestricted filter stays below 1 m:
+
+```bash
+docker build -t fastlio2-depth:7cc4175 baselines/fastlio2      # needs rgbd-inertial:v1.1
+LAUNCH="depth_bridge fastlio_depth.launch" LOG_DIR_IN=/ws/src/fast_lio/Log/result \
+BASE_CFG=fl2lio_utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/fastlio2 $PWD/data/utmm fastlio2-depth:7cc4175 \
+  "e14_U e14_J e14_S e14_S10 e14_K" 5 1 fast-straight slow-straight-1 slow-straight-2
+```
+
+The office sequences (`office1-1`, `office1-2`, `office1-6`, `office1-7`) use `BASE_CFG=fl2lio_openloris.yaml CAM_CFG=camera_openloris.yaml`.
+`baselines/fastlio2/make_config.py` wrote the two `fl2lio_*.yaml` files, with the trigger of each dataset.
+
+## Timing on a Jetson
+
+The `Dockerfile` also builds on arm64. `jetson/bench_jetson.sh` times Ours, the Baseline, and the depth-stratified
+sampler on the eight sequences of Supplementary S6, with per-frame times, sensor-to-pose latency, memory, and power:
+
+```bash
+BAGS_DIR=/path/to/bags OUT_DIR=$PWD/timing PLATFORM=orin_nx_16gb bash jetson/bench_jetson.sh
+```
+
+`BAGS_DIR` holds `<seq>_d455.bag`; the script sets the board to its maximum-performance mode first (`NO_CLOCKS=1` skips this).
 
 ## Datasets
 
@@ -99,7 +134,7 @@ external reference; the dataset card on Hugging Face lists the sequences, topics
 
 ```bash
 BASE_CFG=field_site_a.yaml CAM_CFG=camera_field_d455.yaml \
-  bash scripts/run_sequences.sh $PWD/results/site_a $PWD/data/site_a rgbd-inertial:v1.0 s_ours_lin 1 1
+  bash scripts/run_sequences.sh $PWD/results/site_a $PWD/data/site_a rgbd-inertial:v1.1 s_ours_lin 1 1
 python3 scripts/evaluate_field_runs.py results/site_a data/site_a --loops empty_1
 ```
 

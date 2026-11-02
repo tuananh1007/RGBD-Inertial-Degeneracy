@@ -1,0 +1,3 @@
+# Upstream FAST-LIO2 with the restriction module (baselines/fastlio2)
+# S10: projection + splice, suppressed position directions inflated x10 (variance x100); tau from fl2lio_*.yaml.
+e14: {mode: 2, inflate: 10.0}

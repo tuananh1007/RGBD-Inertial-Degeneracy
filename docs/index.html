@@ -42,7 +42,7 @@
     <p><strong>Methods:</strong> Classical restricted-gain theory separates the effect of projecting a correction from
     that of its stored covariance. A shared-map iterated Kalman filter, adapted to consumer depth with spatially
     distributed samples, continuous-time inertial noise parameters, staged initialization, and photometric updates, is
-    the experimental platform. Controlled experiments compare projected updates with Joseph-form or spliced
+    the testbed. Controlled experiments compare projected updates with Joseph-form or spliced
     covariances, sampling policies, and noise models.</p>
     <p><strong>Results:</strong> With matched triggers, storing the splice raises the per-sequence error by
     geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS and diverges in every run of a long outdoor sequence,
@@ -53,7 +53,7 @@
     depth and a correlated reference), the estimator completes all 90 runs, replayed at the recorded rate, with
     translational absolute trajectory error below 0.5&nbsp;m, which no other online method compared achieves; the
     measured front-end stages average 12–22&nbsp;ms per frame on four desktop CPU cores.</p>
-    <p><strong>Conclusion:</strong> A restricted correction cannot be judged apart from the covariance stored with it.
+    <p><strong>Conclusion:</strong> When a further update uses the stored covariance, a restricted correction cannot be judged apart from it.
     Failures on additional scenes and an uncalibrated covariance limit generalization.</p>
   </div>
 </section>
