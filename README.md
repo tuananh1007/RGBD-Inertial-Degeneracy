@@ -35,7 +35,7 @@ On 18 primary sequences (15 consumer RGB-D recordings from UT-MM and OpenLORIS-S
 and three FAST-LIVO2 sequences with sparse LiDAR-rendered depth and a correlated reference), the estimator completes
 all 90 runs, replayed at the recorded rate, with translational absolute trajectory error below 0.5 m, which no other
 online method compared in the paper achieves; the measured front-end stages average 12–22 ms per frame on four
-desktop CPU cores. With matched triggers, storing the spliced covariance of a projected update raises the
+desktop CPU cores. With stress-test triggers, storing the spliced covariance of a projected update raises the
 per-sequence error by geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS-Scene and diverges in every run of a
 long outdoor sequence, whereas the same projection with the Joseph-form covariance has errors similar to the
 unrestricted filter. With the photometric update off on UT-MM, and in upstream FAST-LIO2 on seven sequences, the two
