@@ -1,5 +1,5 @@
 # Strided-fill base (2026-10-16 rerun): ours.yaml with depth/itps_fill = strided.
-# Base configuration: staged IMU (continuous-time noise, staged initialisation, no bias re-inflation),
+# The paper's "- linearity variance" row (an earlier final configuration): staged IMU (continuous-time noise, staged initialisation, no bias re-inflation),
 # plain IEKF depth update, ITPS point selection with a depth-bin fallback below 1000 candidates,
 # photometric (VIO) update with adaptive frame scheduling.  The linearity-dependent photometric
 # variance of P2 is off (it hurt the corridor-like OpenLORIS sequences, Supplement S2).

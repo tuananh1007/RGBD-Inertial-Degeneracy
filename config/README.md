@@ -47,6 +47,7 @@ are the files the `s_*` and `u_*` configurations were derived from (each file's 
 |---|---|---|
 | `e11_*.yaml` | the projected update with Joseph-form, spliced, and inflated covariance at stress-test triggers | Section 5.5, Figure 4, Supplementary S2 |
 | `e15_*.yaml` | the `e11_t22_*` comparison with the photometric update off | Supplementary S12 |
+| `e16_*.yaml` | the projected update with the unrestricted posterior stored (`e11_*` and `e15_*` counterparts) | Supplementary S12 |
 | `e14_*.yaml`, with `fl2lio_*.yaml` as `BASE_CFG` | upstream FAST-LIO2 with the same projection (`baselines/fastlio2`) | Supplementary S12 |
 | `e1_*.yaml` | inertial noise form and magnitudes, gravity random walk | Supplementary S10 |
 | `e2_*.yaml` | point budget | Supplementary S10 |

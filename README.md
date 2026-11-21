@@ -23,7 +23,7 @@ points are fused in the same filter. It runs on ROS Noetic, on the CPU.
 | `rgbd_vio/` | the estimator, a ROS 1 catkin package that compiles the FAST-LIVO2 sources it shares |
 | `patches/fastlivo2/` | two patches to FAST-LIVO2 `0d2c034`: a photometric consistency gate and local photometric bundle adjustment, both off unless configured |
 | `config/` | dataset, camera, and experiment configurations; [config/README.md](config/README.md) maps the methods of the paper to files |
-| `scripts/` | dataset converters, the runner, and the evaluators |
+| `scripts/` | dataset converters, the runner, the evaluators, and the ratio statistics (`ratio_ci.py`, `point_counts.py`) |
 | `baselines/fastlio2/` | upstream FAST-LIO2 with the projection of the earlier system, for the check in Supplementary S12 |
 | `jetson/` | the timing benchmark of Supplementary S6 |
 | `Dockerfile` | the build: Ubuntu 20.04, ROS Noetic, pinned third-party commits; amd64 and arm64 |
@@ -49,7 +49,7 @@ its supplement report these cases.
 
 ```bash
 git clone https://github.com/tuananh1007/RGBD-Inertial-Degeneracy.git && cd RGBD-Inertial-Degeneracy
-docker build -t rgbd-inertial:v1.1 .          # about 5 min on an 8-core desktop; runs the two unit tests
+docker build -t rgbd-inertial:v1.2 .          # about 5 min on an 8-core desktop; runs the two unit tests
 pip install -r requirements.txt               # converters and evaluators, on the host
 ```
 
@@ -62,7 +62,7 @@ python3 scripts/convert_utmm.py /path/to/square-1.bag data/utmm/square-1_d455.ba
 
 # 2. Play it in real time into the estimator (Ours = s_ours_lin), one run on cores 0-4
 BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml \
-  bash scripts/run_sequences.sh $PWD/results/utmm $PWD/data/utmm rgbd-inertial:v1.1 s_ours_lin 1 1 square-1
+  bash scripts/run_sequences.sh $PWD/results/utmm $PWD/data/utmm rgbd-inertial:v1.2 s_ours_lin 1 1 square-1
 
 # 3. Score it: SE(3) ATE, 1 s RPE, completion -> results/utmm/metrics.csv
 python3 scripts/evaluate_runs.py results/utmm data/utmm
@@ -80,20 +80,41 @@ vary from run to run.
 Supplementary S12 repeats the covariance comparison with one update per frame. With the photometric update off, on UT-MM:
 
 ```bash
-BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/noupdate $PWD/data/utmm rgbd-inertial:v1.1 \
+BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/noupdate $PWD/data/utmm rgbd-inertial:v1.2 \
   "s_ours_novio e15_novio_t22_joseph e15_novio_t22_splice e15_novio_t22_splice10" 5 1
 ```
 
 With the same projection in upstream FAST-LIO2, on the sequences where the unrestricted filter stays below 1 m:
 
 ```bash
-docker build -t fastlio2-depth:7cc4175 baselines/fastlio2      # needs rgbd-inertial:v1.1
+docker build -t fastlio2-depth:7cc4175 baselines/fastlio2      # needs rgbd-inertial:v1.2
 LAUNCH="depth_bridge fastlio_depth.launch" LOG_DIR_IN=/ws/src/fast_lio/Log/result \
 BASE_CFG=fl2lio_utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/fastlio2 $PWD/data/utmm fastlio2-depth:7cc4175 \
   "e14_U e14_J e14_S e14_S10 e14_K" 5 1 fast-straight slow-straight-1 slow-straight-2
 ```
 
 The office sequences (`office1-1`, `office1-2`, `office1-6`, `office1-7`) use `BASE_CFG=fl2lio_openloris.yaml CAM_CFG=camera_openloris.yaml`.
+
+## The unrestricted posterior and the IMU rate
+
+Supplementary S12 also stores the unrestricted posterior with the projected correction (`lio/oc_cov_mode: posterior`).
+On UT-MM, with the ratios to the unrestricted filter and their intervals:
+
+```bash
+BASE_CFG=utmm.yaml CAM_CFG=camera_utmm.yaml bash scripts/run_sequences.sh $PWD/results/posterior $PWD/data/utmm rgbd-inertial:v1.2 \
+  "s_ours_lin e11_t22_joseph e11_t22_splice e16_t22_posterior" 5 1
+python3 scripts/evaluate_runs.py results/posterior data/utmm
+python3 scripts/ratio_ci.py --ref s_ours_lin results/posterior/metrics.csv
+```
+
+`e16_t52_posterior` is the OpenLORIS configuration, `e16_p10_posterior` the one for `CBD_Building_02`, and
+`e16_novio_t22_posterior` the one without the photometric update (reference `s_ours_novio`).
+
+Supplementary S10 repeats the comparison with the per-sample noise form on IMU streams at a lower rate. In the
+estimator image, `scripts/decimate_imu.py IN.bag OUT.bag --stride 2` keeps every second IMU message (stride 2 on UT-MM,
+4 on OpenLORIS); the configurations are `s_ours_lin` and `e1_h2match_utmm` or `e1_h2match_openloris`, run on the
+recorded and the decimated bags in one batch. `scripts/point_counts.py` gives the points per frame after selection,
+after the voxel filter, and matched to the map (Section 5.5).
 `baselines/fastlio2/make_config.py` wrote the two `fl2lio_*.yaml` files, with the trigger of each dataset.
 
 ## Timing on a Jetson
@@ -134,7 +155,7 @@ external reference; the dataset card on Hugging Face lists the sequences, topics
 
 ```bash
 BASE_CFG=field_site_a.yaml CAM_CFG=camera_field_d455.yaml \
-  bash scripts/run_sequences.sh $PWD/results/site_a $PWD/data/site_a rgbd-inertial:v1.1 s_ours_lin 1 1
+  bash scripts/run_sequences.sh $PWD/results/site_a $PWD/data/site_a rgbd-inertial:v1.2 s_ours_lin 1 1
 python3 scripts/evaluate_field_runs.py results/site_a data/site_a --loops empty_1
 ```
 

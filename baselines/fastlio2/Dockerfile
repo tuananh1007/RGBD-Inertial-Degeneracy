@@ -2,9 +2,9 @@
 # e14_restriction.hpp and e14_laserMapping.patch, on RGB-D bags through depth_bridge (Supplementary S12).  Built on the
 # estimator image for ROS Noetic and PCL; livox_ros_driver holds message definitions only.
 #
-#   docker build -t rgbd-inertial:v1.1 .
+#   docker build -t rgbd-inertial:v1.2 .
 #   docker build -t fastlio2-depth:7cc4175 baselines/fastlio2
-FROM rgbd-inertial:v1.1
+FROM rgbd-inertial:v1.2
 
 COPY livox_ros_driver /ws/src/livox_ros_driver
 COPY depth_bridge /ws/src/depth_bridge

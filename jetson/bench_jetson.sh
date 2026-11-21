@@ -15,7 +15,7 @@
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$HERE/.." && pwd)
 BAGS_DIR=${BAGS_DIR:?set BAGS_DIR}; OUT_DIR=${OUT_DIR:-$HOME/timing}; PLATFORM=${PLATFORM:-jetson}
-IMAGE=${IMAGE:-rgbd-inertial:v1.1}; VARIANTS=${VARIANTS:-"s_ours_lin B lin_noitps"}; RUNS=${RUNS:-1}
+IMAGE=${IMAGE:-rgbd-inertial:v1.2}; VARIANTS=${VARIANTS:-"s_ours_lin B lin_noitps"}; RUNS=${RUNS:-1}
 OUT=$OUT_DIR/$PLATFORM; mkdir -p "$OUT"
 IMAGE_ID=$(docker image inspect "$IMAGE" --format '{{.Id}}' | cut -c8-19)
 # dataset  sequence  base config  camera config

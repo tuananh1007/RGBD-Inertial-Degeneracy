@@ -36,24 +36,24 @@
 <section id="abstract">
   <div class="container narrow">
     <h2>Abstract</h2>
-    <p><strong>Purpose:</strong> Consumer depth cameras often constrain motion weakly in large rooms, corridors, and
-    outdoor scenes, and filters commonly restrict the correction along the weak directions. We ask whether such a
-    restriction acts through the projection or its stored covariance, and how point sampling, inertial weighting, and
-    photometric fusion affect RGB-D–inertial odometry.</p>
-    <p><strong>Methods:</strong> Classical restricted-gain theory separates a projection from its stored covariance. The
-    testbed is a shared-map iterated Kalman filter adapted to consumer depth and inertial sensors. Controlled experiments
-    vary the covariance stored with a projected update, the sampling policy, and the noise model.</p>
-    <p><strong>Results:</strong> With stress-test triggers, storing the splice raises the per-sequence error by
-    geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS and diverges in every run of a long outdoor sequence,
-    whereas the same projection with Joseph-form covariance has errors similar to the unrestricted filter, on two
-    platforms and in two batches. Inertial noise weighting and photometric fusion each lower the error substantially;
-    information-guided quotas show no significant advantage over uniform sampling. On 18 primary sequences (15 consumer
-    RGB-D recordings with motion-capture references, three with sparse LiDAR-rendered depth and a correlated reference),
-    the estimator completes all 90 runs under real-time playback with translational absolute trajectory error below
-    0.5&nbsp;m, which no other online method compared achieves, and its front-end stages average 12–22&nbsp;ms per frame
-    on four desktop CPU cores.</p>
-    <p><strong>Conclusion:</strong> When a later update uses the stored covariance, a restricted correction cannot be
-    judged apart from it. Failures on additional scenes and an uncalibrated covariance limit generalization.</p>
+    <p><strong>Purpose:</strong> Consumer depth cameras constrain motion weakly in large rooms, corridors, and
+    outdoors, and filters restrict the correction along the weak directions. We ask whether such a restriction acts
+    through the projection or its stored covariance, and how point sampling, inertial weighting, and photometric
+    fusion affect RGB-D–inertial odometry.</p>
+    <p><strong>Methods:</strong> We adapt a shared-map iterated Kalman filter to consumer sensors and, guided by
+    classical restricted-gain theory, vary the covariance stored with a fixed projected update, the sampling policy,
+    and the noise model in controlled experiments.</p>
+    <p><strong>Results:</strong> When a photometric update follows the projected depth update, a spliced covariance
+    raises the error under stress-test triggers by geometric-mean factors of 6 on UT-MM and 32 on OpenLORIS. On a long
+    outdoor sequence the error reaches at least 9 m in every run. The Joseph form stays similar to the unrestricted
+    filter. With one update per frame both covariances give similar errors, and neither beats the unrestricted filter.
+    Inertial noise magnitudes and photometric fusion each lower the benchmark error substantially. Information-guided
+    quotas show no significant advantage over uniform sampling. On 18 primary sequences, three with LiDAR-rendered
+    depth and a correlated reference, all 90 main-batch runs finish under real-time playback with absolute trajectory
+    error below 0.5 m, which no other online method matches. Filter stages average 12–22 ms per frame on four cores.
+    The estimator diverges on 14 of 21 further sequences.</p>
+    <p><strong>Conclusion:</strong> A restricted correction should be judged with its stored covariance and the
+    updates that follow. Divergence on unseen scenes and an uncalibrated covariance limit generalization.</p>
   </div>
 </section>
 

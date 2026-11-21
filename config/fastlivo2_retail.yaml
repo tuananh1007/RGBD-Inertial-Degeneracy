@@ -90,7 +90,7 @@ depth:
   # point selection that maximises λ_min(FIM) of the translational Fisher
   # Information Matrix.  Unifies depth sampling, degeneracy detection,
   # and VIO covariance adaptation into a single objective.
-  info_select_en:   false     # true = ITPS; false = fallback to depth_bins
+  info_select_en:   false     # true = ITPS; false (or < itps_min_candidates) = plain sampler: every valid pixel here (depth_bins_en: false)
   target_points:    20000    # total point budget K
   rebalance_alpha:  0.5      # degeneracy rebalancing strength α ∈ [0,1]
 

@@ -1694,7 +1694,8 @@ void RGBDMapper::applyConstrainedEKF_ITPS(const SelectionInfo &info,
   projectedCovariances(state_prop.cov, _state.cov, Pi_full, PL, PS);
   logCovDiag("itps", DepthMeasures.last_lio_update_time - _first_depth_time, n_obs, isotropy, dp, dp - dp_constrained,
              _state, state_prop, PL, PS);
-  _state.cov = (oc_cov_mode_ == "joseph") ? PL : PS;
+  // "posterior": keep P_K, the covariance of the unrestricted update, with the projected correction
+  if (oc_cov_mode_ != "posterior") _state.cov = (oc_cov_mode_ == "joseph") ? PL : PS;
 
   // Optional: inflate covariance along unobservable translation directions
   // to signal uncertainty to the VIO layer
@@ -1847,7 +1848,8 @@ void RGBDMapper::applyConstrainedEKF_ICP(
   projectedCovariances(state_prop.cov, _state.cov, Pi_full, PL, PS);
   logCovDiag("icp", DepthMeasures.last_lio_update_time - _first_depth_time, n_obs, sigma_min, dp, dp - Pi_trans * dp,
              _state, state_prop, PL, PS);
-  _state.cov = (oc_icp_cov_from_config_ && oc_cov_mode_ == "joseph") ? PL : PS;
+  if (!(oc_icp_cov_from_config_ && oc_cov_mode_ == "posterior"))
+    _state.cov = (oc_icp_cov_from_config_ && oc_cov_mode_ == "joseph") ? PL : PS;
 
   if (oc_icp_cov_from_config_ && degenerate_now && oc_cov_inflate_ > 1.0)
   {

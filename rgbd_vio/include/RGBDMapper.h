@@ -359,7 +359,7 @@ public:
   double  oc_adapt_kappa_knee_        = 20.0;  // condition number at sigmoid midpoint
   bool    oc_adaptive_thresh_en_      = true;  // enable adaptive threshold (false = fixed)
   double  oc_cov_inflate_             = 10.0;  // inflate cov along unobs. dirs by this factor
-  std::string oc_cov_mode_            = "splice";  // "splice" (earlier system) | "joseph" (consistent covariance of the projected gain)
+  std::string oc_cov_mode_            = "splice";  // "splice" (earlier system) | "joseph" (consistent covariance of the projected gain) | "posterior" (P_K of the unrestricted update)
   bool    oc_sched_from_ratio_        = false; // keep the VIO scheduling signal from the plain depth update (rho_t) instead of the selected-normal isotropy
   bool    oc_icp_cov_from_config_     = false; // sparse-depth (ICP) projection path: apply lio/oc_cov_mode and oc_cov_inflate (false: splice, no inflation, as our earlier system)
   bool    init_cov_reset_             = true;  // staged initialization restarts the inertial covariance blocks (false: keep the covariance; E12 diagnostic)
